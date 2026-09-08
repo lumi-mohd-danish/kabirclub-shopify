@@ -5,7 +5,7 @@ interface VariantSelectorProps {
 }
 
 export default function VariantSelector({ product }: VariantSelectorProps) {
-  // Since Supabase products don't have variants like Shopify, we'll show basic product info
+  // Since Supassbase products don't have variants like Shopify, we'll show basic product info
   return (
     <div className="space-y-4">
       <div>
