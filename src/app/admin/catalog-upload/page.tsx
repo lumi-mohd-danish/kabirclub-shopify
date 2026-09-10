@@ -13,6 +13,23 @@ interface CSVProduct {
   images: string[];
 }
 
+// See src/app/admin/products/page.tsx for the shared admin control vocabulary.
+// The one filled gold element here is the "Upload Catalog" submit.
+const BTN_GOLD =
+  'btn w-full px-4 py-3 text-body-sm disabled:border-transparent disabled:bg-ink-600 disabled:text-paper disabled:cursor-not-allowed';
+const BTN_GHOST =
+  'inline-flex items-center justify-center gap-2 rounded-control border border-ink-faint px-4 py-3 text-body-sm font-medium leading-none text-paper transition-colors duration-fast ease-cloth hover:bg-ink-700 active:translate-y-px';
+const LABEL = 'eyebrow mb-2 block text-paper-muted';
+
+// The method tabs: the selected one takes the gold edge — the woven thread as
+// active-tile marker — rather than a gold fill.
+const TAB = 'rounded-control border px-4 py-3 text-body-sm font-medium transition-colors duration-fast ease-cloth';
+const TAB_ON = 'border-zari-500 bg-ink-700 text-paper';
+const TAB_OFF = 'border-ink-faint text-paper-muted hover:border-paper-muted hover:text-paper';
+
+const FILE_INPUT =
+  'block w-full text-body-sm text-paper-muted file:mr-4 file:rounded-control file:border-0 file:bg-ink-700 file:px-4 file:py-2 file:text-body-sm file:font-medium file:text-paper hover:file:bg-ink-600';
+
 export default function CatalogUploadPage() {
   const { requireAdmin } = useAdminAuth();
   const [file, setFile] = useState<File | null>(null);
@@ -165,62 +182,64 @@ export default function CatalogUploadPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-gray-900 rounded-lg p-6">
-        <h1 className="text-3xl font-bold text-white mb-2">Catalog Upload</h1>
-        <p className="text-gray-400">
+      <div>
+        <p className="eyebrow text-zari-500">Catalogue</p>
+        <h1 className="mt-2 font-display text-h2 text-paper">Catalog Upload</h1>
+        <div className="rule-zari mt-3 w-12" />
+        <p className="mt-3 text-body-sm text-paper-muted">
           Upload products in bulk using CSV, JSON, or manual entry
         </p>
       </div>
 
       {message && (
-        <div className={`p-4 rounded-lg ${
-          message.type === 'success' ? 'bg-green-900 text-green-200' : 'bg-red-900 text-red-200'
-        }`}>
+        <div
+          role="status"
+          aria-live="polite"
+          className={`px-4 py-3 text-body-sm ${
+            message.type === 'success' ? 'bg-neem text-paper' : 'bg-madder text-paper'
+          }`}
+        >
           {message.text}
         </div>
       )}
 
       {/* Upload Method Selection */}
-      <div className="bg-gray-900 rounded-lg p-6">
-        <h2 className="text-xl font-bold text-white mb-4">Upload Method</h2>
-        <div className="flex space-x-4 mb-6">
-          <button
-            onClick={() => setUploadMethod('manual')}
-            className={`px-4 py-2 rounded-lg ${
-              uploadMethod === 'manual' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
-          >
-            Manual Entry
-          </button>
-          <button
-            onClick={() => setUploadMethod('csv')}
-            className={`px-4 py-2 rounded-lg ${
-              uploadMethod === 'csv' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
-          >
-            CSV Upload
-          </button>
-          <button
-            onClick={() => setUploadMethod('json')}
-            className={`px-4 py-2 rounded-lg ${
-              uploadMethod === 'json' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
-          >
-            JSON Upload
-          </button>
+      <div className="space-y-5 border border-ink-700 bg-ink-800 p-4 md:p-6">
+        <div>
+          <h2 className="eyebrow text-paper-muted">Upload Method</h2>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => setUploadMethod('manual')}
+              aria-pressed={uploadMethod === 'manual'}
+              className={`${TAB} ${uploadMethod === 'manual' ? TAB_ON : TAB_OFF}`}
+            >
+              Manual Entry
+            </button>
+            <button
+              type="button"
+              onClick={() => setUploadMethod('csv')}
+              aria-pressed={uploadMethod === 'csv'}
+              className={`${TAB} ${uploadMethod === 'csv' ? TAB_ON : TAB_OFF}`}
+            >
+              CSV Upload
+            </button>
+            <button
+              type="button"
+              onClick={() => setUploadMethod('json')}
+              aria-pressed={uploadMethod === 'json'}
+              className={`${TAB} ${uploadMethod === 'json' ? TAB_ON : TAB_OFF}`}
+            >
+              JSON Upload
+            </button>
+          </div>
         </div>
 
         {/* CSV Upload */}
         {uploadMethod === 'csv' && (
           <div className="space-y-4">
             <div>
-              <label className="block text-white text-sm font-medium mb-2">
+              <label htmlFor="file-upload" className={LABEL}>
                 Upload CSV File
               </label>
               <input
@@ -228,25 +247,22 @@ export default function CatalogUploadPage() {
                 type="file"
                 accept=".csv"
                 onChange={handleFileUpload}
-                className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700"
+                className={FILE_INPUT}
               />
             </div>
             
-            <div className="flex space-x-2">
-              <button
-                onClick={downloadSampleCSV}
-                className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
-              >
+            <div className="flex flex-wrap gap-3">
+              <button type="button" onClick={downloadSampleCSV} className={BTN_GHOST}>
                 Download Sample CSV
               </button>
             </div>
 
-            <div className="bg-gray-800 p-4 rounded-lg">
-              <h3 className="text-white font-medium mb-2">CSV Format:</h3>
-              <p className="text-gray-300 text-sm mb-2">
+            <div className="border border-ink-700 bg-ink-900 p-4">
+              <h3 className="eyebrow text-paper-muted">CSV Format</h3>
+              <p className="mt-2 text-body-sm text-paper">
                 CSV should have columns: title, description, price, category, handle, images
               </p>
-              <p className="text-gray-400 text-xs">
+              <p className="mt-2 text-caption text-paper-muted">
                 Images column should contain URLs separated by | (pipe) character
               </p>
             </div>
@@ -257,29 +273,28 @@ export default function CatalogUploadPage() {
         {uploadMethod === 'json' && (
           <div className="space-y-4">
             <div>
-              <label className="block text-white text-sm font-medium mb-2">
+              <label htmlFor="json-file-upload" className={LABEL}>
                 Upload JSON File or Paste JSON Data
               </label>
               <input
+                id="json-file-upload"
                 type="file"
                 accept=".json"
                 onChange={handleFileUpload}
-                className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 mb-4"
+                className={`${FILE_INPUT} mb-4`}
               />
               
               <textarea
                 value={jsonData}
                 onChange={(e) => setJsonData(e.target.value)}
+                aria-label="Paste JSON data"
                 placeholder="Or paste JSON data here..."
                 rows={10}
-                className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+                className="field-ink py-2"
               />
             </div>
 
-            <button
-              onClick={downloadSampleJSON}
-              className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
-            >
+            <button type="button" onClick={downloadSampleJSON} className={BTN_GHOST}>
               Download Sample JSON
             </button>
           </div>
@@ -287,14 +302,12 @@ export default function CatalogUploadPage() {
 
         {/* Manual Entry */}
         {uploadMethod === 'manual' && (
-          <div className="bg-gray-800 p-4 rounded-lg">
-            <p className="text-gray-300 mb-4">
-              For manual entry, use the <a href="/admin/products/new" className="text-blue-400 hover:text-blue-300">Add New Product</a> page.
+          <div className="border border-ink-700 bg-ink-900 p-4">
+            <p className="mb-4 text-body-sm text-paper">
+              For manual entry, use the{' '}
+              <a href="/admin/products/new" className="thread-link-ink text-zari-500">Add New Product</a> page.
             </p>
-            <a
-              href="/admin/products/new"
-              className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
+            <a href="/admin/products/new" className={BTN_GHOST}>
               Add New Product
             </a>
           </div>
@@ -303,9 +316,10 @@ export default function CatalogUploadPage() {
         {/* Upload Button */}
         {(uploadMethod === 'csv' && file) || (uploadMethod === 'json' && (file || jsonData)) ? (
           <button
+            type="button"
             onClick={handleUpload}
             disabled={isLoading}
-            className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed font-medium"
+            className={BTN_GOLD}
           >
             {isLoading ? 'Uploading...' : 'Upload Catalog'}
           </button>
@@ -313,15 +327,15 @@ export default function CatalogUploadPage() {
       </div>
 
       {/* Instructions */}
-      <div className="bg-gray-900 rounded-lg p-6">
-        <h2 className="text-xl font-bold text-white mb-4">Instructions</h2>
-        <div className="text-gray-300 space-y-2">
-          <p>• <strong>CSV Format:</strong> Use comma-separated values with headers</p>
-          <p>• <strong>JSON Format:</strong> Array of product objects</p>
-          <p>• <strong>Required fields:</strong> title, price, handle, category</p>
-          <p>• <strong>Images:</strong> Provide valid URLs (for CSV, separate multiple URLs with |)</p>
-          <p>• <strong>Handle:</strong> Must be unique URL-friendly identifier (e.g., &quot;premium-white-tshirt&quot;)</p>
-          <p>• <strong>Price:</strong> In rupees (e.g., 999 for ₹999)</p>
+      <div className="border border-ink-700 bg-ink-800 p-4 md:p-6">
+        <h2 className="eyebrow text-paper-muted">Instructions</h2>
+        <div className="mt-3 space-y-2 text-body-sm text-paper-muted">
+          <p>• <strong className="font-medium text-paper">CSV Format:</strong> Use comma-separated values with headers</p>
+          <p>• <strong className="font-medium text-paper">JSON Format:</strong> Array of product objects</p>
+          <p>• <strong className="font-medium text-paper">Required fields:</strong> title, price, handle, category</p>
+          <p>• <strong className="font-medium text-paper">Images:</strong> Provide valid URLs (for CSV, separate multiple URLs with |)</p>
+          <p>• <strong className="font-medium text-paper">Handle:</strong> Must be unique URL-friendly identifier (e.g., &quot;premium-white-tshirt&quot;)</p>
+          <p>• <strong className="font-medium text-paper">Price:</strong> In rupees (e.g., 999 for ₹999)</p>
         </div>
       </div>
     </div>

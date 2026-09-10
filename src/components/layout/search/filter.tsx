@@ -29,24 +29,40 @@ export default function FilterList({ list }: { list: ListItem[] }) {
 
   return (
     <div className="flex items-center gap-4">
-      <ul className="flex flex-wrap gap-3">
-        {list.map((item) => (
-          <li key={item.slug}>
-            <button
-              onClick={() => handleSortChange(item.slug)}
-              className={`group relative inline-block rounded-full px-5 py-2.5 text-sm font-medium transition-all duration-300 ${
-                activeFilter === item.slug
-                  ? 'bg-[#daa520] text-black shadow-lg shadow-[#daa520]/20'
-                  : 'text-gray-300 hover:bg-[#daa520]/10 hover:text-[#daa520]'
-              }`}
-            >
-              {item.title}
-              {activeFilter === item.slug && (
-                <span className="absolute inset-0 animate-ping rounded-full border-2 border-[#daa520] opacity-20"></span>
-              )}
-            </button>
-          </li>
-        ))}
+      <ul className="flex flex-wrap gap-2">
+        {list.map((item) => {
+          const active = activeFilter === item.slug;
+
+          return (
+            <li key={item.slug}>
+              {/*
+                Sort chips on the catalogue's PAPER ground. The selected chip
+                takes an ink fill (16.1:1) rather than a gold one: gold is a
+                thread in this system, and a state marker is not the one filled
+                gold element a view is allowed. Idle chips borrow the metal as a
+                hairline on hover but keep ink type, because a chip is 14px and
+                zari-700 is only AA from 16px up.
+
+                `aria-pressed` is what tells a screen reader which sort is
+                active - previously that was carried by colour alone. The
+                `animate-ping` halo is gone: an infinite pulse on the current
+                sort is exactly the UI-kit tic this direction removes.
+              */}
+              <button
+                type="button"
+                aria-pressed={active}
+                onClick={() => handleSortChange(item.slug)}
+                className={`inline-block rounded-control border px-5 py-2.5 text-body-sm font-medium transition-colors duration-fast ease-cloth ${
+                  active
+                    ? 'border-ink bg-ink text-paper'
+                    : 'border-line text-ink-muted hover:border-zari-700 hover:text-ink'
+                }`}
+              >
+                {item.title}
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

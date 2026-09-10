@@ -23,12 +23,14 @@ export function Gallery({ images }: { images: { src: string; altText: string }[]
   previousSearchParams.set('image', previousImageIndex.toString());
   const previousUrl = createUrl(pathname, previousSearchParams);
 
+  // Colour, not geometry: the arrow resolves from `ink-muted` to `ink` rather
+  // than jumping 10% in size under the cursor.
   const buttonClassName =
-    'h-full px-6 transition-all ease-in-out hover:scale-110 hover:text-black dark:hover:text-white flex items-center justify-center';
+    'flex h-full items-center justify-center px-6 transition-colors duration-fast ease-cloth hover:text-ink';
 
   return (
     <>
-      <div className="relative aspect-square h-full max-h-[550px] w-full overflow-hidden">
+      <div className="relative aspect-[3/4] h-full max-h-[550px] w-full overflow-hidden rounded-plate bg-paper-sunk">
         {images[imageIndex] && (
           <Image
             className="h-full w-full object-contain"
@@ -42,7 +44,7 @@ export function Gallery({ images }: { images: { src: string; altText: string }[]
 
         {images.length > 1 ? (
           <div className="absolute bottom-[15%] flex w-full justify-center">
-            <div className="mx-auto flex h-11 items-center rounded-full border border-white bg-neutral-50/80 text-neutral-500 backdrop-blur dark:border-black dark:bg-neutral-900/80">
+            <div className="mx-auto flex h-11 items-center rounded-pill border border-line bg-paper-raised/90 text-ink-muted backdrop-blur">
               <Link
                 aria-label="Previous product image"
                 href={previousUrl}
@@ -51,7 +53,7 @@ export function Gallery({ images }: { images: { src: string; altText: string }[]
               >
                 <ArrowLeftIcon className="h-5" />
               </Link>
-              <div className="mx-1 h-6 w-px bg-neutral-500"></div>
+              <div className="mx-1 h-6 w-px bg-line-strong"></div>
               <Link
                 aria-label="Next product image"
                 href={nextUrl}

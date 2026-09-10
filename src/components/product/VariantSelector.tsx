@@ -9,25 +9,27 @@ export default function VariantSelector({ product }: VariantSelectorProps) {
   return (
     <div className="space-y-4">
       <div>
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">Product Information</h3>
+        <p className="eyebrow mb-3 text-ink-muted">Product Information</p>
         <div className="space-y-2">
           <div className="flex justify-between">
-            <span className="text-gray-600">Category:</span>
-            <span className="font-medium capitalize">{product.category}</span>
+            <span className="text-ink-muted">Category:</span>
+            <span className="font-medium capitalize text-ink">{product.category}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Product ID:</span>
-            <span className="font-medium text-sm">{product.id}</span>
+            <span className="text-ink-muted">Product ID:</span>
+            <span className="num text-body-sm font-medium text-ink">{product.id}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-gray-600">Added:</span>
-            <span className="font-medium">{new Date(product.created_at).toLocaleDateString()}</span>
+            <span className="text-ink-muted">Added:</span>
+            <span className="num font-medium text-ink">
+              {new Date(product.created_at).toLocaleDateString()}
+            </span>
           </div>
         </div>
       </div>
       
-      <div className="border-t border-gray-200 pt-4">
-        <p className="text-sm text-gray-500">
+      <div className="border-t border-line pt-4">
+        <p className="text-body-sm text-ink-muted">
           This product is available in standard sizing. Please refer to our size guide for accurate measurements.
         </p>
       </div>

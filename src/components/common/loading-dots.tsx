@@ -1,6 +1,12 @@
 import clsx from 'clsx';
 
-const dots = 'mx-[1px] inline-block h-1 w-1 animate-blink rounded-md';
+/**
+ * Three blinking dots. Colour is the caller's job because the dots appear on
+ * both grounds: `bg-ink` on paper, `bg-paper` on ink. `rounded-pill` rather
+ * than `rounded-md` — a 4px dot should be a dot, and the radius scale reserves
+ * the pill for exactly this kind of round element.
+ */
+const dots = 'mx-px inline-block h-1 w-1 animate-blink rounded-pill';
 
 const LoadingDots = ({ className }: { className: string }) => {
   return (

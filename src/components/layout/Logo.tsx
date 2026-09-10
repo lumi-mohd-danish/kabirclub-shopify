@@ -11,9 +11,13 @@ const Logo = ({ size, className }: { size: 'sm' | 'lg'; className?: string }) =>
       width="594"
       height="206"
       sizes={size === 'sm' ? '150px' : '288px'}
+      // Heights moved off arbitrary pixels and onto the 4px scale: 40/52 ->
+      // h-10 / xl:h-12 (40/48) and 64/100 -> h-16 / md:h-24 (64/96). Nothing
+      // else about the mark changes - the header owns its own final height and
+      // passes it through `className`.
       className={clsx('w-auto max-w-none', className, {
-        'h-[40px] xl:h-[52px]': size === 'sm',
-        'h-[64px] md:h-[100px]': size === 'lg'
+        'h-10 xl:h-12': size === 'sm',
+        'h-16 md:h-24': size === 'lg'
       })}
       alt="logo"
       priority

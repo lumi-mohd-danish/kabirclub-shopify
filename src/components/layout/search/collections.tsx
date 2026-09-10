@@ -2,9 +2,12 @@ import clsx from 'clsx';
 import { Suspense } from 'react';
 
 
+/* Skeleton bars on paper: the two hairline tones, strong for the headings and
+   plain for the rows. The `dark:` pair is gone - this system paints its own
+   grounds rather than following the OS. */
 const skeleton = 'mb-3 h-4 w-5/6 animate-pulse rounded';
-const activeAndTitles = 'bg-neutral-800 dark:bg-neutral-300';
-const items = 'bg-neutral-400 dark:bg-neutral-700';
+const activeAndTitles = 'bg-line-strong';
+const items = 'bg-line';
 
 export default function Collections() {
   return (

@@ -73,7 +73,10 @@ export function EditItemQuantityButton({
       onClick={handleClick}
       disabled={isDisabled}
       aria-busy={isPending}
-      className="ease flex h-full min-w-[36px] max-w-[36px] flex-none items-center justify-center rounded-none px-2 transition-all duration-200 hover:border-purple hover:bg-purple hover:text-white disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+      // Stepper ends, on the drawer's INK ground. The hover is a raised ink
+      // surface rather than a saturated fill: the stepper is a control, not
+      // the view's one gold element.
+      className="flex h-full min-w-9 max-w-9 flex-none items-center justify-center rounded-plate px-2 text-paper transition-colors duration-fast ease-cloth hover:bg-ink-700 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
       type="button"
       aria-label={
         type === 'plus'
@@ -81,7 +84,7 @@ export function EditItemQuantityButton({
           : `Decrease quantity of ${item.merchandise.product.title}`
       }
     >
-      <span className="text-lg font-bold text-purple hover:text-white">
+      <span aria-hidden="true" className="text-h3 leading-none">
         {type === 'plus' ? '+' : '−'}
       </span>
     </button>

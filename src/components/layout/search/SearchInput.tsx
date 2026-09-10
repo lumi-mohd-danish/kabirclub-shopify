@@ -33,14 +33,26 @@ export default function SearchInput() {
 
   return (
     <div className="relative">
+      {/*
+        `.field` is the paper form recipe: 16px type (below that iOS zooms the
+        page on focus), `rounded-control`, an `ink-faint` hairline that clears
+        WCAG 1.4.11's 3:1 for a control boundary, and a `zari-700` focus
+        border. It deliberately leaves `outline` alone so the shared
+        focus-visible ring in globals.css still lands. `pr-12` keeps the type
+        clear of the magnifier.
+
+        The placeholder was the only label this control had; an `aria-label`
+        gives it a real accessible name that survives typing.
+      */}
       <input
-        type="text"
+        type="search"
         value={query}
         onChange={handleChange}
+        aria-label="Search products"
         placeholder="Search products..."
-        className="w-full rounded-full border border-[#daa520]/20 bg-black px-6 py-3 text-gray-300 placeholder-gray-500 focus:border-[#daa520] focus:outline-none"
+        className="field pr-12"
       />
-      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[#daa520]">
+      <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-zari-700">
         <svg
           xmlns="http://www.w3.org/2000/svg"
           className="h-5 w-5"

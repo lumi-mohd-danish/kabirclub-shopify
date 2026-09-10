@@ -12,8 +12,15 @@ function ContactUsButton({
   selectedVariantId: string | undefined;
   productHandle: string;
 }) {
-  const buttonClasses = 'relative flex items-center justify-center rounded-[16px] border-2 border-darkPurple bg-lightPurple px-[24px] py-[12px] font-quicksand text-[20px] font-medium text-darkPurple transition-all duration-300 hover:bg-purple hover:text-white w-fit';
-  const disabledClasses = 'btn-cart-disabled cursor-not-allowed opacity-60 hover:opacity-60';
+  // A WhatsApp hand-off is a secondary action on the PDP's PAPER ground, so it
+  // takes the bare ink hairline rather than a fill - the single gold element on
+  // that view belongs to Add to Cart. The unavailable state overrides the
+  // recipe with utilities (which outrank the components layer) instead of
+  // stacking `.btn-cart-disabled`, whose `w-full` would fight `w-fit`. The old
+  // `opacity-60` is gone: it dropped an 11.1:1 pairing to about 3.5:1.
+  const buttonClasses = 'btn btn-secondary w-fit';
+  const disabledClasses =
+    'cursor-not-allowed border-transparent bg-ink-600 text-paper hover:bg-ink-600 hover:text-paper';
 
   if (!availableForSale) {
     return (

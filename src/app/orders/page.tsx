@@ -68,7 +68,7 @@ export default function OrdersPage() {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const sessionId = await getSessionId();
       if (!sessionId) {
         setError('You have no orders yet. Add something to your cart to get started.');
@@ -108,33 +108,37 @@ export default function OrdersPage() {
   // `document.cookie`. The server action is the only way to read it.
   const getSessionId = (): Promise<string | null> => getCartSessionId();
 
+  // Status chips are `.eyebrow` on a 3px control radius. The palette has no
+  // blue or purple, so the informational states read as strong neutral ink
+  // rather than as an off-system hue: haldi = awaiting action, ink = in
+  // transit, neem = done, madder = failed.
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
-        return 'bg-yellow-600 text-yellow-100';
+        return 'bg-haldi text-ink';
       case 'confirmed':
-        return 'bg-blue-600 text-blue-100';
+        return 'border border-line-strong bg-paper-sunk text-ink';
       case 'shipped':
-        return 'bg-purple-600 text-purple-100';
+        return 'bg-ink-900 text-paper';
       case 'delivered':
-        return 'bg-green-600 text-green-100';
+        return 'bg-neem text-paper';
       case 'cancelled':
-        return 'bg-red-600 text-red-100';
+        return 'bg-madder text-paper';
       default:
-        return 'bg-gray-600 text-gray-100';
+        return 'border border-line bg-paper text-ink-muted';
     }
   };
 
   const getPaymentStatusColor = (status: string) => {
     switch (status) {
       case 'paid':
-        return 'bg-green-600 text-green-100';
+        return 'bg-neem text-paper';
       case 'pending':
-        return 'bg-yellow-600 text-yellow-100';
+        return 'bg-haldi text-ink';
       case 'failed':
-        return 'bg-red-600 text-red-100';
+        return 'bg-madder text-paper';
       default:
-        return 'bg-gray-600 text-gray-100';
+        return 'border border-line bg-paper text-ink-muted';
     }
   };
 
@@ -151,10 +155,10 @@ export default function OrdersPage() {
   // Loading state
   if (authLoading && !loadingTimeout) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-paper text-ink">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#daa520] mx-auto mb-4"></div>
-          <p className="text-lg">Checking authentication...</p>
+          <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-pill border-b-2 border-zari-700"></div>
+          <p className="text-lead text-ink-muted">Checking authentication...</p>
         </div>
       </div>
     );
@@ -163,21 +167,18 @@ export default function OrdersPage() {
   // Timeout state
   if (loadingTimeout) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-paper px-5 text-ink">
         <div className="text-center">
-          <p className="text-lg mb-4">Authentication timeout</p>
-          <p className="text-gray-400 mb-6">Please refresh the page or try logging in again</p>
-          <div className="flex gap-4 justify-center">
-            <button 
-              onClick={() => window.location.reload()} 
-              className="bg-[#daa520] hover:bg-[#b8860b] text-black font-bold py-2 px-6 rounded-lg transition-colors duration-200"
-            >
+          <p className="eyebrow text-ink-muted">Orders</p>
+          <h1 className="mt-3 font-display text-h2 text-ink">Authentication timeout</h1>
+          <p className="mt-3 text-body text-ink-muted">
+            Please refresh the page or try logging in again
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <button onClick={() => window.location.reload()} className="btn-primary">
               Refresh Page
             </button>
-            <Link 
-              href="/login" 
-              className="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg transition-colors duration-200"
-            >
+            <Link href="/login" className="btn-secondary">
               Go to Login
             </Link>
           </div>
@@ -189,14 +190,12 @@ export default function OrdersPage() {
   // Auth error state
   if (!isAuthenticated() || !user) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-paper px-5 text-ink">
         <div className="text-center">
-          <p className="text-lg mb-4">Authentication required</p>
-          <p className="text-gray-400 mb-6">Please log in to view your orders</p>
-          <Link 
-            href="/login" 
-            className="bg-[#daa520] hover:bg-[#b38a1d] text-black font-bold py-2 px-6 rounded-lg transition-colors duration-200"
-          >
+          <p className="eyebrow text-ink-muted">Orders</p>
+          <h1 className="mt-3 font-display text-h2 text-ink">Authentication required</h1>
+          <p className="mt-3 text-body text-ink-muted">Please log in to view your orders</p>
+          <Link href="/login" className="btn-primary mt-8">
             Go to Login
           </Link>
         </div>
@@ -206,10 +205,10 @@ export default function OrdersPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-paper text-ink">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-[#daa520] mx-auto mb-4"></div>
-          <h1 className="text-2xl font-bold text-white">Loading your orders...</h1>
+          <div className="mx-auto mb-5 h-16 w-16 animate-spin rounded-pill border-b-2 border-zari-700"></div>
+          <h1 className="font-display text-h2 text-ink">Loading your orders...</h1>
         </div>
       </div>
     );
@@ -218,22 +217,20 @@ export default function OrdersPage() {
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-paper px-5 text-ink">
         <div className="text-center">
-          <div className="text-6xl mb-4">⚠️</div>
-          <h1 className="text-2xl font-bold text-white mb-4">Something went wrong</h1>
-          <p className="text-gray-400 mb-6">{error}</p>
-          <div className="space-y-3">
-            <button
-              onClick={fetchOrders}
-              className="bg-[#daa520] text-black px-6 py-3 rounded-lg font-semibold hover:bg-[#b38a1d] mr-3"
-            >
+          <div className="mb-5 text-6xl" aria-hidden="true">
+            &#9888;&#65039;
+          </div>
+          <h1 className="font-display text-h2 text-ink">Something went wrong</h1>
+          <p role="alert" className="mt-3 text-body text-madder">
+            {error}
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <button onClick={fetchOrders} className="btn-primary">
               Try Again
             </button>
-            <button
-              onClick={() => router.push('/')}
-              className="bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-600"
-            >
+            <button onClick={() => router.push('/')} className="btn-secondary">
               Go to Home
             </button>
           </div>
@@ -245,16 +242,18 @@ export default function OrdersPage() {
   // No orders state
   if (orders.length === 0) {
     return (
-      <div className="min-h-screen bg-black text-white py-8">
-        <div className="max-w-6xl mx-auto px-4">
+      <div className="min-h-screen bg-paper py-16 text-ink md:py-24">
+        <div className="mx-auto max-w-6xl px-5 md:px-8">
           <div className="text-center">
-            <div className="text-6xl mb-4">📦</div>
-            <h1 className="text-3xl font-bold text-[#daa520] mb-4">No Orders Yet</h1>
-            <p className="text-gray-400 mb-6">You haven&apos;t placed any orders yet. Start shopping to see your orders here!</p>
-            <button
-              onClick={() => router.push('/')}
-              className="bg-[#daa520] text-black px-6 py-3 rounded-lg font-semibold hover:bg-[#b38a1d]"
-            >
+            <div className="mb-5 text-6xl" aria-hidden="true">
+              &#128230;
+            </div>
+            <p className="eyebrow text-ink-muted">Orders</p>
+            <h1 className="mt-3 font-display text-h1 text-ink">No Orders Yet</h1>
+            <p className="mx-auto mt-4 max-w-[46ch] text-body text-ink-muted">
+              You haven&apos;t placed any orders yet. Start shopping to see your orders here!
+            </p>
+            <button onClick={() => router.push('/')} className="btn-primary mt-8">
               Start Shopping
             </button>
           </div>
@@ -264,58 +263,81 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white py-8">
-      <div className="max-w-6xl mx-auto px-4">
+    <div className="min-h-screen bg-paper py-16 text-ink md:py-24">
+      <div className="mx-auto max-w-6xl px-5 md:px-8">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-[#daa520]">My Orders</h1>
-          <p className="text-gray-400 mt-2">Track your order status and view order details</p>
+        <div className="mb-10 text-center">
+          <p className="eyebrow text-ink-muted">Account</p>
+          <div className="rule-zari mx-auto mt-4 w-16" />
+          <h1 className="mt-5 font-display text-h1 text-ink">My Orders</h1>
+          <p className="mt-3 text-body text-ink-muted">
+            Track your order status and view order details
+          </p>
         </div>
 
         {/* Navigation Breadcrumb */}
-        <div className="flex items-center justify-center mb-6 text-sm text-gray-400">
-          <Link href="/" className="hover:text-[#daa520] transition-colors duration-200">
+        <nav
+          aria-label="Breadcrumb"
+          className="mb-10 flex items-center justify-center gap-2 text-body-sm text-ink-muted"
+        >
+          <Link href="/" className="thread-link text-ink-muted">
             Home
           </Link>
-          <span className="mx-2">/</span>
-          <span className="text-[#daa520]">My Orders</span>
-        </div>
+          <span aria-hidden="true">/</span>
+          <span className="text-ink">My Orders</span>
+        </nav>
 
         {/* Orders List */}
         <div className="space-y-6">
           {orders.map((order) => (
-            <div key={order.id} className="bg-gray-900 border border-gray-800 rounded-lg p-6">
+            <div
+              key={order.id}
+              className="rounded-plate border border-line bg-paper-raised p-6 md:p-8"
+            >
               {/* Order Header */}
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+              <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-white">Order #{order.id.slice(0, 8)}</h3>
-                  <p className="text-gray-400 text-sm">Placed on {formatDate(order.createdAt)}</p>
+                  <h3 className="num text-h3 text-ink">Order #{order.id.slice(0, 8)}</h3>
+                  <p className="num mt-1 text-body-sm text-ink-muted">
+                    Placed on {formatDate(order.createdAt)}
+                  </p>
                 </div>
-                <div className="flex flex-wrap gap-2 mt-2 md:mt-0">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(order.orderStatus)}`}>
+                <div className="flex flex-wrap gap-2">
+                  <span
+                    className={`eyebrow inline-block rounded-control px-2.5 py-1.5 ${getStatusColor(order.orderStatus)}`}
+                  >
                     {order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1)}
                   </span>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPaymentStatusColor(order.paymentStatus)}`}>
+                  <span
+                    className={`eyebrow inline-block rounded-control px-2.5 py-1.5 ${getPaymentStatusColor(order.paymentStatus)}`}
+                  >
                     {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
                   </span>
                 </div>
               </div>
 
               {/* Order Items */}
-              <div className="mb-4">
-                <h4 className="text-base font-semibold text-white mb-3">Order Items:</h4>
-                <div className="space-y-2">
+              <div className="mb-6">
+                <h4 className="eyebrow text-ink-muted">Order Items</h4>
+                <div className="mt-3">
                   {order.items.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
+                    <div
+                      key={index}
+                      className="flex items-center justify-between gap-4 border-b border-line py-3 last:border-b-0"
+                    >
                       <div className="flex-1">
-                        <p className="text-white font-medium">{item.product.title}</p>
-                        <p className="text-gray-400 text-sm">
+                        <p className="text-body font-medium text-ink">{item.product.title}</p>
+                        <p className="num mt-1 text-body-sm text-ink-muted">
                           Size: {item.size} | Qty: {item.quantity}
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-white font-medium">{formatPrice(item.totalPrice)}</p>
-                        <p className="text-gray-400 text-sm">{formatPrice(item.price)} each</p>
+                        <p className="num text-body font-medium text-ink">
+                          {formatPrice(item.totalPrice)}
+                        </p>
+                        <p className="num mt-1 text-body-sm text-ink-muted">
+                          {formatPrice(item.price)} each
+                        </p>
                       </div>
                     </div>
                   ))}
@@ -323,58 +345,65 @@ export default function OrdersPage() {
               </div>
 
               {/* Order Summary */}
-              <div className="bg-gray-800 rounded-lg p-4 mb-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-300">Subtotal:</span>
-                  <span className="text-white">{formatPrice(order.subtotal)}</span>
+              <div className="mb-6 rounded-plate border border-line bg-paper-sunk p-5">
+                <p className="eyebrow mb-3 text-ink-muted">Summary</p>
+                <div className="flex items-center justify-between gap-4 py-1">
+                  <span className="text-body text-ink-muted">Subtotal</span>
+                  <span className="num text-body text-ink">{formatPrice(order.subtotal)}</span>
                 </div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-300">Shipping:</span>
-                  <span className="text-white">{formatPrice(order.shippingCost)}</span>
+                <div className="flex items-center justify-between gap-4 py-1">
+                  <span className="text-body text-ink-muted">Shipping</span>
+                  <span className="num text-body text-ink">{formatPrice(order.shippingCost)}</span>
                 </div>
                 {/* `orders` has no tax column, so GST is derived the way the
                     data layer documents it: total - subtotal - shipping.
                     Without this row the printed figures do not add up. */}
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-300">{`GST (${Math.round(GST_RATE * 100)}%):`}</span>
-                  <span className="text-white">
+                <div className="flex items-center justify-between gap-4 py-1">
+                  <span className="num text-body text-ink-muted">{`GST (${Math.round(GST_RATE * 100)}%)`}</span>
+                  <span className="num text-body text-ink">
                     {formatPrice(
                       Math.max(0, order.totalAmount - order.subtotal - order.shippingCost)
                     )}
                   </span>
                 </div>
-                <div className="flex justify-between items-center pt-2 border-t border-gray-600">
-                  <span className="text-lg font-semibold text-[#daa520]">Total:</span>
-                  <span className="text-lg font-bold text-[#daa520]">{formatPrice(order.totalAmount)}</span>
+                <div className="rule-zari my-3" />
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-body font-medium text-ink">Total</span>
+                  <span className="num text-price text-zari-700">
+                    {formatPrice(order.totalAmount)}
+                  </span>
                 </div>
               </div>
 
               {/* Shipping Address */}
-              <div className="mb-4">
-                <h4 className="text-base font-semibold text-white mb-3">Shipping Address:</h4>
-                <div className="bg-gray-800 rounded-lg p-4">
-                  <p className="text-white font-medium">{order.shippingAddress.fullName}</p>
-                  <p className="text-gray-300">{order.shippingAddress.addressLine1}</p>
+              <div className="mb-6">
+                <h4 className="eyebrow text-ink-muted">Shipping Address</h4>
+                <address className="mt-3 rounded-plate border border-line bg-paper-sunk p-5 text-body not-italic text-ink-muted">
+                  <span className="block font-medium text-ink">
+                    {order.shippingAddress.fullName}
+                  </span>
+                  <span className="block">{order.shippingAddress.addressLine1}</span>
                   {order.shippingAddress.addressLine2 && (
-                    <p className="text-gray-300">{order.shippingAddress.addressLine2}</p>
+                    <span className="block">{order.shippingAddress.addressLine2}</span>
                   )}
-                  <p className="text-gray-300">
-                    {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}
-                  </p>
-                  <p className="text-gray-300">{order.shippingAddress.country}</p>
-                  <p className="text-gray-300">Phone: {order.shippingAddress.phone}</p>
-                </div>
+                  <span className="block">
+                    {order.shippingAddress.city}, {order.shippingAddress.state}{' '}
+                    <span className="num">{order.shippingAddress.postalCode}</span>
+                  </span>
+                  <span className="block">{order.shippingAddress.country}</span>
+                  <span className="num block">Phone: {order.shippingAddress.phone}</span>
+                </address>
               </div>
 
               {/* Payment Method */}
               <div>
-                <h4 className="text-base font-semibold text-white mb-3">Payment Method:</h4>
-                <div className="bg-gray-800 rounded-lg p-4">
-                  <p className="text-white font-medium capitalize">
+                <h4 className="eyebrow text-ink-muted">Payment Method</h4>
+                <div className="mt-3 rounded-plate border border-line bg-paper-sunk p-5">
+                  <p className="text-body font-medium capitalize text-ink">
                     {order.paymentMethod.replace('_', ' ')}
                   </p>
                   {order.paymentMethod === 'upi' && order.upiId && (
-                    <p className="text-gray-300 text-sm">UPI ID: {order.upiId}</p>
+                    <p className="mt-1 text-body-sm text-ink-muted">UPI ID: {order.upiId}</p>
                   )}
                 </div>
               </div>
@@ -383,11 +412,8 @@ export default function OrdersPage() {
         </div>
 
         {/* Back to Home */}
-        <div className="text-center mt-8">
-          <button
-            onClick={() => router.push('/')}
-            className="bg-[#daa520] text-black px-6 py-3 rounded-lg font-semibold hover:bg-[#b38a1d]"
-          >
+        <div className="mt-10 text-center">
+          <button onClick={() => router.push('/')} className="btn-primary">
             Continue Shopping
           </button>
         </div>

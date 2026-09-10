@@ -12,20 +12,31 @@ const NewArrivals = async () => {
       page: 0,
       limit: 6
     });
-    
+
     // Ensure products is always an array
     const safeProducts = Array.isArray(result.products) ? result.products : [];
-    
+
     return (
-      <section className="flex w-full items-center justify-center bg-black pb-8 sm:pb-12 md:pb-16 pt-6 sm:pt-8 md:pt-12">
-        <div className="flex flex-col items-center justify-center gap-6 sm:gap-8 md:gap-12 w-full max-w-[95%] px-3 sm:px-4 md:max-w-[904px]">
-          <h2 className="w-full text-center font-lora text-2xl sm:text-3xl md:text-4xl lg:text-[40px] font-medium text-[#D4AF37]">
-            New Arrivals
-          </h2>
+      <section className="section">
+        <div className="container-page flex flex-col gap-10 md:gap-14">
+          <div className="flex flex-col gap-3">
+            <p className="eyebrow text-ink-muted">Just in</p>
+            <h2 className="font-display text-h2 text-ink">New Arrivals</h2>
+          </div>
+
           <ProductList products={safeProducts} />
-          <a href="/search?sort=createdAt-desc" className="btn text-base sm:text-lg md:text-xl lg:text-[22px] px-6 sm:px-8 py-2 sm:py-3">
-            View More
-          </a>
+
+          {/*
+            `created_at-desc` is the canonical slug the /search sort chips use
+            (see src/app/search/page.tsx). The old `createdAt-desc` resolved to
+            the same query through the fallback branch but left every chip
+            reading as unselected on arrival.
+          */}
+          <div className="flex justify-center">
+            <a href="/search?sort=created_at-desc" className="btn-secondary">
+              View More
+            </a>
+          </div>
         </div>
       </section>
     );
@@ -33,14 +44,13 @@ const NewArrivals = async () => {
     console.error('Error loading New Arrivals:', error);
     // Return fallback UI if there's an error
     return (
-      <section className="flex w-full items-center justify-center bg-black pb-8 sm:pb-12 md:pb-16 pt-6 sm:pt-8 md:pt-12">
-        <div className="flex flex-col items-center justify-center gap-4 sm:gap-6 w-full max-w-[95%] px-3 sm:px-4 md:max-w-[904px]">
-          <h2 className="w-full text-center font-lora text-2xl sm:text-3xl md:text-4xl lg:text-[40px] font-medium text-[#D4AF37]">
-            New Arrivals
-          </h2>
-          <div className="text-center text-gray-500">
-            <p className="text-sm sm:text-base">Loading products...</p>
+      <section className="section">
+        <div className="container-page flex flex-col gap-10 md:gap-14">
+          <div className="flex flex-col gap-3">
+            <p className="eyebrow text-ink-muted">Just in</p>
+            <h2 className="font-display text-h2 text-ink">New Arrivals</h2>
           </div>
+          <p className="text-body text-ink-muted">Loading products&hellip;</p>
         </div>
       </section>
     );

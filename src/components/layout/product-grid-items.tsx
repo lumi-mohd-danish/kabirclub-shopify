@@ -14,12 +14,15 @@ import { Product } from '@/lib/supabase/types';
  */
 
 /**
- * Entrance animations stagger, but only for the first few cards. An uncapped
- * `index * step` meant the last card of a long page faded in tens of seconds
+ * The cloth reveal staggers, but only for the first few plates. An uncapped
+ * `index * step` meant the last card of a long page arrived tens of seconds
  * after load, which reads as a broken page.
+ *
+ * 40ms a step, capped at six steps: 240ms from the first plate to the last one
+ * that is still staggered, which is roughly the length of the reveal itself.
  */
-const MAX_STAGGER_STEPS = 7;
-const STAGGER_STEP_SECONDS = 0.06;
+const MAX_STAGGER_STEPS = 6;
+const STAGGER_STEP_SECONDS = 0.04;
 
 interface ProductGridItemsProps {
   products: Product[];

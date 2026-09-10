@@ -75,20 +75,24 @@ export default function Cart() {
 
   if (isLoading) {
     return (
-      <div className="w-6 h-6 md:w-6 md:h-6 bg-gray-800 rounded animate-pulse" aria-hidden="true"></div>
+      <div className="h-6 w-6 animate-pulse rounded bg-ink-800" aria-hidden="true"></div>
     );
   }
 
   return (
     <div className="relative group">
       <CartModal cart={cart ?? undefined} />
-      {/* Tooltip */}
+      {/*
+        Tooltip. The header is an ink band, so the tooltip inverts to paper —
+        an `ink-800` chip on an `ink-900` ground is 1.08:1 and would be
+        invisible. Paper on ink also gives the arrow something to read as.
+      */}
       <div
         aria-hidden="true"
-        className="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap"
+        className="pointer-events-none absolute bottom-full right-0 mb-2 whitespace-nowrap rounded-control bg-paper px-2 py-1 text-caption text-ink opacity-0 transition-opacity duration-fast ease-cloth group-hover:opacity-100"
       >
         {signedIn ? `View Cart (${cart?.totalQuantity ?? 0} items)` : 'Login to view cart'}
-        <div className="absolute top-full right-2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+        <div className="absolute right-2 top-full h-0 w-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-paper"></div>
       </div>
     </div>
   );

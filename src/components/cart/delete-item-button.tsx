@@ -55,11 +55,15 @@ export function DeleteItemButton({
       onClick={handleClick}
       disabled={isPending}
       aria-busy={isPending}
-      className="ease flex h-[17px] w-[17px] items-center justify-center rounded-full border border-purple bg-white transition-all duration-200 hover:bg-purple hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+      // The remove chip sits on the drawer's INK ground: an ink-800 disc with
+      // an ink-600 hairline at rest, resolving to the `madder` state colour on
+      // hover and focus (paper on madder is 6.61:1). Destructive is the one
+      // job madder has; it is never decoration.
+      className="flex h-5 w-5 items-center justify-center rounded-pill border border-ink-600 bg-ink-800 text-paper-muted transition-colors duration-fast ease-cloth hover:border-madder hover:bg-madder hover:text-paper focus-visible:border-madder focus-visible:bg-madder focus-visible:text-paper disabled:cursor-not-allowed disabled:opacity-50"
       type="button"
       aria-label={`Remove ${item.merchandise.product.title} from cart`}
     >
-      <span aria-hidden="true" className="text-[10px] font-bold text-purple hover:text-white">
+      <span aria-hidden="true" className="text-caption leading-none">
         ×
       </span>
     </button>

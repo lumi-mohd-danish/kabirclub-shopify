@@ -20,6 +20,25 @@ const SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
 
 const HANDLE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+// See src/app/admin/products/page.tsx for the shared admin control vocabulary.
+// The one filled gold element here is the "Update Product" submit.
+const BTN_GOLD =
+  'btn px-4 py-3 text-body-sm disabled:border-transparent disabled:bg-ink-600 disabled:text-paper disabled:cursor-not-allowed';
+const BTN_GHOST =
+  'inline-flex items-center justify-center gap-2 rounded-control border border-ink-faint px-4 py-3 text-body-sm font-medium leading-none text-paper transition-colors duration-fast ease-cloth hover:bg-ink-700 active:translate-y-px';
+const LABEL = 'eyebrow mb-2 block text-paper-muted';
+const HINT = 'mt-2 text-caption text-paper-muted';
+
+// madder is 2.53:1 as text on ink, so an inline error is carried as a filled
+// pill (paper on madder, 6.61:1) rather than as coloured type.
+const INLINE_ERROR =
+  'mt-2 inline-block rounded-control bg-madder px-2 py-1 text-caption text-paper';
+
+const SIZE_CHIP =
+  'rounded-control border px-3 py-2 text-body-sm font-medium transition-colors duration-fast ease-cloth';
+const SIZE_CHIP_ON = 'border-zari-500 bg-ink-700 text-paper';
+const SIZE_CHIP_OFF = 'border-ink-faint text-paper-muted hover:border-paper-muted hover:text-paper';
+
 const slugify = (value: string): string =>
   value
     .toLowerCase()
@@ -234,7 +253,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
   if (isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="text-white text-xl">Loading product...</div>
+        <div className="text-h3 text-paper-muted">Loading product...</div>
       </div>
     );
   }
@@ -242,13 +261,10 @@ export default function EditProductPage({ params }: EditProductPageProps) {
   if (!product) {
     return (
       <div className="space-y-6">
-        <div className="bg-red-900 text-red-200 p-4 rounded-lg">
+        <div className="bg-madder px-4 py-3 text-body-sm text-paper">
           {loadError ?? 'Product not found'}
         </div>
-        <Link
-          href="/admin/products"
-          className="inline-block px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
-        >
+        <Link href="/admin/products" className={BTN_GHOST}>
           Back to Products
         </Link>
       </div>
@@ -259,21 +275,20 @@ export default function EditProductPage({ params }: EditProductPageProps) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">Edit Product</h1>
-          <p className="text-gray-400">Update product information</p>
+          <p className="eyebrow text-zari-500">Products</p>
+          <h1 className="mt-2 font-display text-h2 text-paper">Edit Product</h1>
+          <div className="rule-zari mt-3 w-12" />
+          <p className="mt-3 text-body-sm text-paper-muted">Update product information</p>
         </div>
-        <Link
-          href="/admin/products"
-          className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
-        >
+        <Link href="/admin/products" className={BTN_GHOST}>
           Back to Products
         </Link>
       </div>
 
       {!product.is_active && (
-        <div className="bg-yellow-900 text-yellow-100 p-4 rounded-lg">
+        <div className="bg-haldi px-4 py-3 text-body-sm text-ink">
           This product is disabled and hidden from the storefront. Tick “Product is active” below
           and save to put it back on sale.
         </div>
@@ -283,19 +298,19 @@ export default function EditProductPage({ params }: EditProductPageProps) {
         <div
           role="status"
           aria-live="polite"
-          className={`p-4 rounded-lg ${
-            message.type === 'success' ? 'bg-green-900 text-green-200' : 'bg-red-900 text-red-200'
+          className={`px-4 py-3 text-body-sm ${
+            message.type === 'success' ? 'bg-neem text-paper' : 'bg-madder text-paper'
           }`}
         >
           {message.text}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-gray-900 rounded-lg p-6 space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-5 border border-ink-700 bg-ink-800 p-4 md:p-6">
         {/* Basic Information */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <div>
-            <label htmlFor="title" className="block text-white text-sm font-medium mb-2">
+            <label htmlFor="title" className={LABEL}>
               Product Title *
             </label>
             <input
@@ -305,13 +320,13 @@ export default function EditProductPage({ params }: EditProductPageProps) {
               value={formData.title}
               onChange={handleInputChange}
               required
-              className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+              className="field-ink py-2"
               placeholder="Enter product title"
             />
           </div>
 
           <div>
-            <label htmlFor="category" className="block text-white text-sm font-medium mb-2">
+            <label htmlFor="category" className={LABEL}>
               Category *
             </label>
             <select
@@ -320,7 +335,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
               value={formData.category}
               onChange={handleInputChange}
               required
-              className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+              className="field-ink py-2"
             >
               <option value="">Select Category</option>
               {CATEGORIES.map(category => (
@@ -333,9 +348,9 @@ export default function EditProductPage({ params }: EditProductPageProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <div>
-            <label htmlFor="price" className="block text-white text-sm font-medium mb-2">
+            <label htmlFor="price" className={LABEL}>
               Price (₹) *
             </label>
             <input
@@ -347,13 +362,13 @@ export default function EditProductPage({ params }: EditProductPageProps) {
               required
               min="0"
               step="0.01"
-              className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+              className="field-ink num py-2"
               placeholder="0.00"
             />
           </div>
 
           <div>
-            <span className="block text-white text-sm font-medium mb-2">
+            <span className={LABEL}>
               Available Sizes *
             </span>
             <div className="grid grid-cols-5 gap-2">
@@ -366,26 +381,22 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                     type="button"
                     onClick={() => handleSizeToggle(size)}
                     aria-pressed={selected}
-                    className={`px-3 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium ${
-                      selected
-                        ? 'border-blue-500 bg-blue-600 text-white'
-                        : 'border-gray-600 text-gray-300 hover:border-blue-500 hover:text-blue-400'
-                    }`}
+                    className={`${SIZE_CHIP} ${selected ? SIZE_CHIP_ON : SIZE_CHIP_OFF}`}
                   >
                     {size}
                   </button>
                 );
               })}
             </div>
-            <p className="text-gray-400 text-xs mt-1">
+            <p className={HINT}>
               Select all available sizes for this product
             </p>
             {formData.sizes.length > 0 ? (
-              <p className="text-blue-400 text-xs mt-1">
+              <p className="mt-1 text-caption text-paper">
                 Selected: {formData.sizes.join(', ')}
               </p>
             ) : (
-              <p className="text-red-300 text-xs mt-1">
+              <p className={INLINE_ERROR}>
                 At least one size is required
               </p>
             )}
@@ -393,7 +404,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
         </div>
 
         <div>
-          <label htmlFor="handle" className="block text-white text-sm font-medium mb-2">
+          <label htmlFor="handle" className={LABEL}>
             Handle (URL) *
           </label>
           <input
@@ -404,17 +415,17 @@ export default function EditProductPage({ params }: EditProductPageProps) {
             onChange={handleInputChange}
             onBlur={handleHandleBlur}
             required
-            className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+            className="field-ink py-2"
             placeholder="product-url-handle"
           />
-          <p className="text-gray-400 text-xs mt-1">
+          <p className={HINT}>
             URL-friendly identifier — lowercase letters, numbers and hyphens only. Changing it
             breaks any existing link to /product/{product.handle}.
           </p>
         </div>
 
         <div>
-          <label htmlFor="description" className="block text-white text-sm font-medium mb-2">
+          <label htmlFor="description" className={LABEL}>
             Description
           </label>
           <textarea
@@ -423,39 +434,39 @@ export default function EditProductPage({ params }: EditProductPageProps) {
             value={formData.description}
             onChange={handleInputChange}
             rows={4}
-            className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+            className="field-ink py-2"
             placeholder="Enter product description"
           />
         </div>
 
         {/* Product Status */}
-        <div className="bg-gray-800 rounded-lg p-4">
-          <div className="flex items-center space-x-3">
+        <div className="border border-ink-700 bg-ink-900 p-4">
+          <div className="flex items-center gap-3">
             <input
               type="checkbox"
               id="is_active"
               name="is_active"
               checked={formData.is_active}
               onChange={handleInputChange}
-              className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+              className="h-4 w-4 flex-shrink-0 accent-neem"
             />
-            <label htmlFor="is_active" className="text-white text-sm font-medium">
+            <label htmlFor="is_active" className="text-body-sm font-medium text-paper">
               Product is active (visible to customers)
             </label>
           </div>
-          <p className="text-gray-400 text-xs mt-1">
+          <p className={HINT}>
             Uncheck to disable this product from being visible to customers
           </p>
         </div>
 
         {/* Product Images */}
         <div>
-          <span className="block text-white text-sm font-medium mb-2">
+          <span className={LABEL}>
             Product Images
           </span>
 
           {uploadError && (
-            <div className="mb-4 p-3 bg-red-900 text-red-200 rounded-lg">
+            <div className="mb-4 bg-madder px-4 py-3 text-body-sm text-paper">
               {uploadError}
             </div>
           )}
@@ -470,15 +481,15 @@ export default function EditProductPage({ params }: EditProductPageProps) {
           {/* Current Images with Remove Option */}
           {formData.images.length > 0 && (
             <div className="mt-4">
-              <p className="text-gray-400 text-sm mb-2">Current Images:</p>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              <p className="eyebrow mb-2 text-paper-muted">Current Images</p>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
                 {formData.images.map((imageUrl, index) => (
-                  <div key={`${index}-${imageUrl}`} className="relative group">
+                  <div key={`${index}-${imageUrl}`} className="group relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={imageUrl}
                       alt={`Product image ${index + 1}`}
-                      className="w-full h-24 object-cover rounded-lg border border-gray-600"
+                      className="h-24 w-full border border-ink-700 bg-paper-sunk object-cover"
                       onError={(e) => {
                         e.currentTarget.src = '/images/placeholder.png';
                       }}
@@ -486,11 +497,11 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                     <button
                       type="button"
                       onClick={() => removeImage(index)}
-                      className="absolute -top-2 -right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                      className="absolute -right-2 -top-2 rounded-pill border border-ink-faint bg-ink-900 p-1 text-paper opacity-0 transition-colors duration-fast ease-cloth hover:border-madder hover:bg-madder focus:opacity-100 group-hover:opacity-100"
                       title={`Remove image ${index + 1}`}
                       aria-label={`Remove image ${index + 1}`}
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
@@ -502,19 +513,16 @@ export default function EditProductPage({ params }: EditProductPageProps) {
         </div>
 
         {/* Submit Button */}
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-3 border-t border-ink-700 pt-5">
           <button
             type="submit"
             disabled={isBusy}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed font-medium"
+            className={BTN_GOLD}
           >
             {isRedirecting ? 'Saved' : isSaving ? 'Updating...' : 'Update Product'}
           </button>
 
-          <Link
-            href="/admin/products"
-            className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 font-medium"
-          >
+          <Link href="/admin/products" className={BTN_GHOST}>
             Cancel
           </Link>
         </div>

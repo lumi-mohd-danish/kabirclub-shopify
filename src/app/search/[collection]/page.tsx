@@ -115,15 +115,18 @@ export default async function CategoryPage({
       : [];
 
   return (
-    <section className="mx-auto flex w-full max-w-[904px] flex-col items-center gap-[48px] px-4 py-[48px]">
-      <div className="flex w-full max-w-[800px] flex-col gap-8">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <h1 className="font-lora text-3xl font-bold capitalize text-white">{collection.title}</h1>
+    <section className="container-page section flex flex-col items-center gap-12">
+      <div className="flex w-full max-w-3xl flex-col gap-8">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <p className="eyebrow text-ink-muted">Collection</p>
+          {/* The woven zari rule: gold as a thread, never as a field. */}
+          <div className="rule-zari w-16" />
+          <h1 className="font-display text-h1 capitalize text-ink">{collection.title}</h1>
           {collection.description && (
-            <p className="max-w-xl text-base text-gray-400">{collection.description}</p>
+            <p className="max-w-[62ch] text-lead text-ink-muted">{collection.description}</p>
           )}
           {products.length > 0 && (
-            <p className="text-lg text-gray-300">
+            <p className="num text-body text-ink-muted">
               Showing {rangeStart}&ndash;{rangeEnd} of {total} {itemsLabel}
             </p>
           )}
@@ -131,7 +134,7 @@ export default async function CategoryPage({
 
         {products.length > 0 && (
           <div className="flex flex-wrap items-center justify-end gap-4">
-            <span className="text-lg font-medium text-gray-300">Sort by:</span>
+            <span className="eyebrow text-ink-muted">Sort by:</span>
             <FilterList list={SORT_OPTIONS} />
           </div>
         )}

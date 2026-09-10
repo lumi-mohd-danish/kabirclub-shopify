@@ -8,6 +8,14 @@ import { Collection } from '@/lib/supabase/types';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 
+// See src/app/admin/products/page.tsx for the shared admin control vocabulary.
+// The one filled gold element here is "Add New Collection".
+const BTN_GOLD = 'btn px-4 py-3 text-body-sm';
+const BTN_GHOST =
+  'inline-flex items-center justify-center gap-2 rounded-control border border-ink-faint px-4 py-3 text-body-sm font-medium leading-none text-paper transition-colors duration-fast ease-cloth hover:bg-ink-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50';
+const CHIP_DANGER =
+  'rounded-control border border-ink-faint px-2 py-1 text-caption font-medium text-paper transition-colors duration-fast ease-cloth hover:border-madder hover:bg-madder active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50';
+
 const errorMessage = (error: unknown, fallback: string): string =>
   error instanceof Error && error.message ? error.message : fallback;
 
@@ -86,21 +94,20 @@ export default function AdminCollectionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">Collections</h1>
-          <p className="text-gray-400">Manage your product collections</p>
+          <p className="eyebrow text-zari-500">Catalogue</p>
+          <h1 className="mt-2 font-display text-h2 text-paper">Collections</h1>
+          <div className="rule-zari mt-3 w-12" />
+          <p className="mt-3 text-body-sm text-paper-muted">Manage your product collections</p>
         </div>
-        <Link
-          href="/admin/collections/new"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
+        <Link href="/admin/collections/new" className={BTN_GOLD}>
           Add New Collection
         </Link>
       </div>
 
       {isReadOnly && (
-        <div className="bg-yellow-900 text-yellow-100 p-4 rounded-lg">
+        <div className="bg-haldi px-4 py-3 text-body-sm text-ink">
           No database is connected, so these are the built-in sample collections. Creating and
           deleting collections will not work until Supabase is configured.
         </div>
@@ -110,8 +117,8 @@ export default function AdminCollectionsPage() {
         <div
           role="status"
           aria-live="polite"
-          className={`p-4 rounded-lg ${
-            message.type === 'success' ? 'bg-green-900 text-green-200' : 'bg-red-900 text-red-200'
+          className={`px-4 py-3 text-body-sm ${
+            message.type === 'success' ? 'bg-neem text-paper' : 'bg-madder text-paper'
           }`}
         >
           {message.text}
@@ -119,59 +126,56 @@ export default function AdminCollectionsPage() {
       )}
 
       {/* Collections Grid */}
-      <div className="bg-gray-900 rounded-lg overflow-hidden">
+      <div className="border border-ink-700 bg-ink-800">
         {isLoading ? (
           <div className="p-8 text-center">
-            <div className="text-white">Loading collections...</div>
+            <div className="text-body text-paper-muted">Loading collections...</div>
           </div>
         ) : collections.length === 0 ? (
           <div className="p-8 text-center">
-            <div className="text-gray-400">No collections found</div>
-            <Link
-              href="/admin/collections/new"
-              className="inline-block mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
+            <div className="text-body text-paper-muted">No collections found</div>
+            <Link href="/admin/collections/new" className={`mt-4 ${BTN_GHOST}`}>
               Add Your First Collection
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
+          <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2 lg:grid-cols-3">
             {collections.map((collection) => {
               const isPending = pendingId === collection.id;
 
               return (
-                <div key={collection.id} className="bg-gray-800 rounded-lg p-6">
-                  <div className="flex justify-between items-start mb-4 gap-4">
-                    <h3 className="text-xl font-bold text-white">{collection.title}</h3>
+                <div key={collection.id} className="border border-ink-700 bg-ink-900 p-4">
+                  <div className="mb-3 flex items-start justify-between gap-4">
+                    <h2 className="text-h3 text-paper">{collection.title}</h2>
                     <button
                       type="button"
                       onClick={() => handleDeleteCollection(collection.id, collection.title)}
                       disabled={isPending}
-                      className="text-red-400 hover:text-red-300 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className={CHIP_DANGER}
                     >
                       {isPending ? 'Deleting...' : 'Delete'}
                     </button>
                   </div>
 
-                  <p className="text-gray-400 mb-4">
+                  <p className="mb-4 text-body-sm text-paper-muted">
                     {collection.description || 'No description'}
                   </p>
 
-                  <div className="flex justify-between items-center text-sm gap-4">
-                    <span className="text-gray-500 break-all">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="break-all text-caption text-paper-muted">
                       Handle: {collection.handle}
                     </span>
                     <Link
                       href={`/search/${collection.handle}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-400 hover:text-blue-300 whitespace-nowrap"
+                      className="thread-link-ink whitespace-nowrap text-body-sm text-zari-500"
                     >
                       View →
                     </Link>
                   </div>
 
-                  <div className="text-xs text-gray-500 mt-2">
+                  <div className="num mt-2 text-caption text-paper-muted">
                     Created: {formatDate(collection.created_at)}
                   </div>
                 </div>
@@ -181,7 +185,7 @@ export default function AdminCollectionsPage() {
         )}
       </div>
 
-      <p className="text-gray-400 text-xs">
+      <p className="text-caption text-paper-muted">
         Collections cannot be edited after they are created yet — delete and recreate one to change
         its title, description or handle.
       </p>

@@ -5,6 +5,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
+// Admin chrome is an ink band, like the storefront header and footer, but at
+// tool density: the nav is one 11px eyebrow row rather than an editorial bar.
+// The gold thread is drawn on hover and focus-visible alike by `.thread-link-ink`.
+const NAV_LINK =
+  'thread-link-ink eyebrow whitespace-nowrap py-2 text-paper-muted hover:text-paper';
+
 export default function AdminLayout({
   children,
 }: {
@@ -28,67 +34,53 @@ export default function AdminLayout({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center px-4">
-        <div className="text-white text-lg sm:text-xl">Loading...</div>
+      <div className="flex min-h-screen items-center justify-center bg-ink-900 px-5">
+        <div className="text-h3 text-paper-muted">Loading...</div>
       </div>
     );
   }
 
   if (!isAuthenticated() || !isAdmin()) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center px-4">
-        <div className="text-white text-lg sm:text-xl text-center">Access Denied</div>
+      <div className="flex min-h-screen items-center justify-center bg-ink-900 px-5">
+        <div className="text-center text-h3 text-paper">Access Denied</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-ink-900 text-paper">
       {/* Admin Navigation */}
-      <nav className="bg-gray-900 border-b border-gray-700 px-3 sm:px-4 md:px-6 py-3 sm:py-4">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 md:gap-8">
-            <Link href="/" className="text-white font-bold text-lg sm:text-xl">
-              KabirClub Admin
+      <nav className="border-b border-ink-700 bg-ink-900">
+        <div className="container-page flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-8">
+            <Link href="/" className="flex items-baseline gap-2 whitespace-nowrap">
+              <span className="font-display text-h3 text-paper">KabirClub</span>
+              <span className="eyebrow text-zari-500">Admin</span>
             </Link>
-            <div className="flex flex-wrap gap-2 sm:gap-4 md:gap-6">
-              <Link 
-                href="/admin" 
-                className="text-gray-300 hover:text-white px-2 sm:px-3 py-1 sm:py-2 rounded-md text-xs sm:text-sm font-medium"
-              >
+            <div className="flex flex-wrap gap-x-6 gap-y-1">
+              <Link href="/admin" className={NAV_LINK}>
                 Dashboard
               </Link>
-              <Link 
-                href="/admin/products" 
-                className="text-gray-300 hover:text-white px-2 sm:px-3 py-1 sm:py-2 rounded-md text-xs sm:text-sm font-medium"
-              >
+              <Link href="/admin/products" className={NAV_LINK}>
                 Products
               </Link>
-              <Link 
-                href="/admin/collections" 
-                className="text-gray-300 hover:text-white px-2 sm:px-3 py-1 sm:py-2 rounded-md text-xs sm:text-sm font-medium"
-              >
+              <Link href="/admin/collections" className={NAV_LINK}>
                 Collections
               </Link>
-              <Link 
-                href="/admin/catalog-upload" 
-                className="text-gray-300 hover:text-white px-2 sm:px-3 py-1 sm:py-2 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap"
-              >
+              <Link href="/admin/catalog-upload" className={NAV_LINK}>
                 Catalog Upload
               </Link>
             </div>
           </div>
-          <Link 
-            href="/" 
-            className="text-gray-300 hover:text-white px-2 sm:px-3 py-1 sm:py-2 rounded-md text-xs sm:text-sm font-medium self-start sm:self-auto"
-          >
+          <Link href="/" className={`${NAV_LINK} self-start sm:self-auto`}>
             Back to Store
           </Link>
         </div>
       </nav>
 
       {/* Admin Content */}
-      <main className="p-3 sm:p-4 md:p-6">
+      <main className="container-page py-6 md:py-8">
         {children}
       </main>
     </div>

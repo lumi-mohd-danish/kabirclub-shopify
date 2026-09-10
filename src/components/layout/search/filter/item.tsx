@@ -20,8 +20,10 @@ function PathFilterItem({ item }: { item: PathFilterItem }) {
     <li className="flex" key={item.title}>
       <DynamicTag
         href={createUrl(item.path, newParams)}
-        className={clsx('w-full text-purple underline-offset-4 hover:underline', {
-          'underline underline-offset-4': active
+        className={clsx('thread-link w-full text-ink', {
+          // The active entry renders as a <p>, so it has no hover thread to
+          // draw. A static underline plus the metal is what marks it.
+          'text-zari-700 underline underline-offset-4': active
         })}
       >
         {item.title}
@@ -49,8 +51,10 @@ function SortFilterItem({ item }: { item: SortFilterItem }) {
       <DynamicTag
         prefetch={!active ? false : undefined}
         href={href}
-        className={clsx('w-full text-purple hover:underline hover:underline-offset-4', {
-          'underline underline-offset-4': active
+        className={clsx('thread-link w-full text-ink', {
+          // The active entry renders as a <p>, so it has no hover thread to
+          // draw. A static underline plus the metal is what marks it.
+          'text-zari-700 underline underline-offset-4': active
         })}
       >
         {item.title}

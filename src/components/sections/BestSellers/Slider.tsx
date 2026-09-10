@@ -112,13 +112,16 @@ const Slider = ({ collection }: { collection: Collection }) => {
           </SwiperSlide>
         ))}
       </Swiper>
+      {/*
+        Carousel arrows. `top-1/2` rather than the old hardcoded `top-[180px]`,
+        which was pinned to the height of the previous card and drifts the
+        moment the plate's aspect ratio changes. -right-8 / -left-8 sits them
+        inside .container-page's own lg gutter, so nothing overflows the page.
+      */}
       <button
         className={clsx(
-          'absolute -right-[5%] top-[180px] hidden font-[swiper-icons] text-[40px] transition-all duration-300 will-change-transform lg:block',
-          {
-            'text-purple hover:text-darkPurple hover:drop-shadow-lg hover:scale-110': !isEnd,
-            'text-purple/30': isEnd
-          }
+          'absolute -right-8 top-1/2 hidden -translate-y-1/2 font-[swiper-icons] text-4xl transition-colors duration-fast ease-cloth lg:block',
+          isEnd ? 'text-ink-faint' : 'text-ink-muted hover:text-ink'
         )}
         onClick={() => swiper.current?.slideNext()}
         disabled={isEnd}
@@ -127,11 +130,8 @@ const Slider = ({ collection }: { collection: Collection }) => {
       </button>
       <button
         className={clsx(
-          'absolute -left-[5%] top-[180px] hidden font-[swiper-icons] text-[40px] transition-all duration-300 will-change-transform lg:block',
-          {
-            'text-purple hover:text-darkPurple hover:drop-shadow-lg hover:scale-110': !isStart,
-            'text-purple/30': isStart
-          }
+          'absolute -left-8 top-1/2 hidden -translate-y-1/2 font-[swiper-icons] text-4xl transition-colors duration-fast ease-cloth lg:block',
+          isStart ? 'text-ink-faint' : 'text-ink-muted hover:text-ink'
         )}
         onClick={() => swiper.current?.slidePrev()}
         disabled={isStart}

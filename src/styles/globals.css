@@ -1,23 +1,50 @@
-/* @import url('https://fonts.googleapis.com/css2?family=Lora&family=Quicksand:wght@400;500;600;700&display=swap'); */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ---------------------------------------------------------------------------
- * Design tokens used by the component recipes and the shared focus indicator.
+ * Base.
  *
- * `--kc-ink` is the brand near-black. It is the only foreground that is
- * readable on every surface the storefront actually paints:
- *   #302216 on brand gold  #fdc466  ->  9.7:1  (AAA)
- *   #302216 on brand gold  #daa520  ->  7.4:1  (AAA)
- *   #302216 on white       #ffffff  -> 15.4:1  (AAA)
- * White text on gold is 1.58:1 and must never be used on a filled gold button.
+ * The font-family custom properties are declared on `html` (specificity 0,0,1)
+ * rather than on `:root` (0,1,0) on purpose: next/font sets them from a
+ * generated class on <html> (`.__variable_xxxxxx`, specificity 0,1,0) in a
+ * stylesheet whose order relative to this one is not guaranteed. A `:root`
+ * declaration would tie on specificity and could win, silently disabling both
+ * webfonts. At `html` it can only ever lose, so it behaves as a pure fallback
+ * for the window before layout.tsx applies the variables.
+ *
+ * `font-variation-settings` pins Fraunces' SOFT and WONK axes to 0 — tailored,
+ * not artisanal. Google already instances them out (fonts.ts requests only the
+ * `opsz` axis), so this is belt-and-braces; it names neither `wght` nor `opsz`,
+ * so font-weight and optical sizing keep working normally. Hanken Grotesk has
+ * no such axes and ignores it.
  * ------------------------------------------------------------------------- */
 @layer base {
-  :root {
-    --kc-ink: #302216;
-    --kc-focus-ring: #302216;
-    --kc-focus-halo: #ffffff;
+  html {
+    --font-display: Georgia, 'Times New Roman', serif;
+    --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+    /* Ink & Zari focus indicator. Two tones, near-black and near-paper, so the
+       ring stays visible on both grounds the site paints. See the rule after
+       `@tailwind utilities` below. */
+    --kc-focus-ring: #1c1714; /* ink */
+    --kc-focus-halo: #f7f3ec; /* paper */
+
+    font-variation-settings:
+      'SOFT' 0,
+      'WONK' 0;
+  }
+
+  /* Paper is the default document ground; ink is opt-in per band. This is a
+     safety net, not the source of truth — layout.tsx carries the same pair as
+     utilities so a call site can still invert a route. */
+  body {
+    @apply bg-paper font-sans text-body text-ink antialiased;
+  }
+
+  ::selection {
+    background-color: theme(colors.zari.300);
+    color: theme(colors.ink.DEFAULT);
   }
 }
 
@@ -27,44 +54,215 @@
  * These MUST live inside `@layer components`. Tailwind hoists this block to
  * the `@tailwind components` position, which keeps every one of these rules
  * ahead of `@tailwind utilities` in the emitted stylesheet. That is what lets
- * a call site write `className="btn bg-[#daa520] text-black"` and actually
- * get gold-with-black-text instead of being silently overridden by the recipe.
- * Declaring them after `@tailwind utilities` (as this file used to) inverts
- * the cascade and makes every call-site utility a no-op.
+ * a call site write `className="btn px-4"` and actually get the narrower
+ * padding instead of being silently overridden by the recipe. Declaring them
+ * after `@tailwind utilities` (as this file used to) inverts the cascade and
+ * makes every call-site utility a no-op.
  * ------------------------------------------------------------------------- */
 @layer components {
-  /* Filled gold primary button. Gold surface, near-black foreground. */
-  .btn {
-    @apply relative rounded-[8px] border border-transparent bg-lightPurple px-[32px] py-[16px] font-bold text-[color:var(--kc-ink)] shadow-md transition-all duration-300 after:absolute after:right-[20px] after:top-[calc(50%_+_2px)] after:font-[swiper-icons] after:text-[20px] after:text-[color:var(--kc-ink)] after:opacity-0 after:transition-all after:duration-300 after:content-['next'] after:-translate-y-1/2 hover:border-lightPurple hover:bg-purple hover:pl-[16px] hover:pr-[48px] hover:after:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--kc-focus-ring)];
+  /* -- Structure ---------------------------------------------------------- */
+
+  /* The one content inset. Replaces max-w-[904px] / max-w-[95%] /
+     max-w-[1200px] / max-w-[1000px]. Applies to the header inner wrapper,
+     <main>, the footer inner wrapper, every section, the PDP row and the
+     recommendations row. Editorial prose caps separately at max-w-[62ch]. */
+  .container-page {
+    @apply mx-auto w-full max-w-[1240px] px-5 md:px-8 lg:px-10;
   }
 
-  /* Filled gold button whose hover state flips to the light surface. */
-  .btn-dark {
-    @apply relative rounded-[8px] border border-transparent bg-purple px-[32px] py-[16px] font-bold text-[color:var(--kc-ink)] shadow-md transition-all duration-300 after:absolute after:right-[20px] after:top-1/2 after:font-[swiper-icons] after:text-[18px] after:text-[color:var(--kc-ink)] after:opacity-0 after:transition-all after:duration-300 after:content-['next'] after:-translate-y-1/2 hover:border-[color:var(--kc-ink)] hover:bg-darkPurple hover:pl-[16px] hover:pr-[48px] hover:after:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--kc-focus-ring)];
+  /* Section rhythm on paper: 64 / 96 / 128. */
+  .section {
+    @apply py-16 md:py-24 lg:py-32;
   }
 
-  /* Light-surface button. Needs a real border or it is invisible on a white
-     page (the `darkPurple` token resolves to #ffffff in tailwind.config.js). */
-  .btn-very-dark {
-    @apply relative rounded-[8px] border border-[color:var(--kc-ink)] bg-darkPurple px-[32px] py-[16px] font-bold text-[color:var(--kc-ink)] shadow-md transition-all duration-300 after:absolute after:right-[20px] after:top-1/2 after:font-[swiper-icons] after:text-[18px] after:text-[color:var(--kc-ink)] after:opacity-0 after:transition-all after:duration-300 after:content-['next'] after:-translate-y-1/2 hover:border-[color:var(--kc-ink)] hover:bg-purple hover:pl-[16px] hover:pr-[48px] hover:after:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--kc-focus-ring)];
+  /* Section rhythm on ink: 80 / 128 / 160, full-bleed, inner content in
+     .container-page. Alternating grounds do the section separation, which is
+     why there are no decorative dividers at every seam. Carries the grain
+     automatically — see .grain below. */
+  .section-band {
+    @apply relative isolate bg-ink-900 py-20 text-paper md:py-32 lg:py-40;
   }
 
-  .btn-cart {
-    @apply relative w-full rounded-[8px] border border-transparent bg-purple px-[32px] py-[16px] font-bold text-[color:var(--kc-ink)] shadow-md transition-all duration-300 after:absolute after:right-[20px] after:top-1/2 after:text-[32px] after:text-[color:var(--kc-ink)] after:opacity-0 after:transition-all after:duration-300 after:content-['+'] after:-translate-y-1/2 hover:border-[color:var(--kc-ink)] hover:bg-darkPurple hover:pl-[16px] hover:pr-[48px] hover:after:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--kc-focus-ring)];
+  /* Film grain so ink never reads as flat #000: an inline feTurbulence SVG,
+     ~230 bytes, no request. Absolutely positioned and clipped to its own
+     element rather than `fixed`: a fixed layer would cover the whole viewport,
+     and three bands would then stack three 3.5% overlays across the paper
+     sections too. `isolation: isolate` on the host confines the blend. */
+  .grain,
+  .section-band {
+    @apply relative isolate;
   }
 
-  /* Rendered with `opacity-60` at the call site, so the foreground has to
-     start from the high-contrast ink to stay legible once faded. */
-  .btn-cart-disabled {
-    @apply relative w-full rounded-[8px] border border-transparent bg-purple px-[32px] py-[16px] font-bold text-[color:var(--kc-ink)] shadow-md;
+  .grain::after,
+  .section-band::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    opacity: 0.035;
+    mix-blend-mode: overlay;
+    background-repeat: repeat;
+    background-size: 220px 220px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23g)'/%3E%3C/svg%3E");
   }
 
-  .hover-line {
-    @apply relative transition-all duration-300 before:absolute before:bottom-0 before:left-1/2 before:h-[1px] before:w-0 before:bg-purple before:opacity-0 before:transition-all before:duration-300 before:will-change-transform before:-translate-x-1/2 hover:text-purple hover:before:w-full hover:before:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--kc-focus-ring)];
+  /* The woven rule — a stitched zari thread, not a solid border. Section
+     divider, plate top edge, cart totals separator, admin active-tile marker.
+     Replaces the four hand-rolled gradient hairlines. Width is a utility:
+     `<div class="rule-zari w-16" />`. */
+  .rule-zari {
+    height: 1px;
+    width: 100%;
+    border: 0;
+    background-image: repeating-linear-gradient(
+      90deg,
+      theme(colors.zari.500) 0 2px,
+      transparent 2px 6px
+    );
+  }
+
+  /* -- Type --------------------------------------------------------------- */
+
+  /* The signature device: 11px / 0.18em / 600 / uppercase, above every section
+     heading, PDP block label, admin stat tile and cart section. Colour is the
+     caller's job and is surface-dependent:
+       on ink    -> `text-zari-500`  (8.53:1)
+       on paper  -> `text-ink-muted` (5.61:1)
+     NOT `text-ink-faint` on paper. ink-faint is 3.67:1, which the palette
+     allows only at 16px+; an eyebrow is 11px, so it needs the full 4.5:1. */
+  .eyebrow {
+    @apply text-eyebrow uppercase;
+  }
+
+  /* Tabular numerals. Required on every price, quantity, order total and
+     admin table cell — figures must not shuffle as they change. */
+  .num {
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+
+  /* -- Links -------------------------------------------------------------- */
+
+  /* The thread underline: a 1px zari bar drawn left-to-right, on hover and
+     focus-visible alike so the keyboard gets everything the mouse does.
+     Compositor-only (scaleX, not width), which is what makes will-change
+     honest. Thickness is parameterised by --thread-h.
+     `.thread-link` is the paper variant (zari-700); use `.thread-link-ink`
+     on ink grounds (zari-500). `.hover-line` / `.header-link` are DEPRECATED
+     aliases kept so un-migrated call sites keep working. */
+  .thread-link,
+  .thread-link-ink,
+  .hover-line,
+  .header-link {
+    --thread-h: 1px;
+    @apply relative inline-block transition-colors duration-fast ease-cloth;
   }
 
   .header-link {
-    @apply relative h-full before:absolute before:bottom-0 before:left-1/2 before:hidden before:h-[4px] before:w-0 before:bg-purple before:opacity-0 before:transition-all before:duration-300 before:will-change-transform before:-translate-x-1/2 hover:text-purple hover:before:w-full hover:before:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--kc-focus-ring)] md:before:block;
+    --thread-h: 2px;
+    @apply h-full;
+  }
+
+  .thread-link::after,
+  .thread-link-ink::after,
+  .hover-line::after,
+  .header-link::after {
+    content: '';
+    height: var(--thread-h);
+    @apply absolute bottom-0 left-0 w-full origin-left scale-x-0 transition-transform ease-cloth;
+  }
+
+  .thread-link::after,
+  .hover-line::after {
+    @apply bg-zari-700;
+  }
+
+  .thread-link-ink::after,
+  .header-link::after {
+    @apply bg-zari-500;
+  }
+
+  .thread-link:hover::after,
+  .thread-link:focus-visible::after,
+  .thread-link-ink:hover::after,
+  .thread-link-ink:focus-visible::after,
+  .hover-line:hover::after,
+  .hover-line:focus-visible::after,
+  .header-link:hover::after,
+  .header-link:focus-visible::after {
+    @apply scale-x-100;
+  }
+
+  /* -- Buttons ------------------------------------------------------------ */
+
+  /* Shared geometry. No ::after arrow, no padding shift on hover — both were
+     layout-thrashing decoration. Every button presses: active:translate-y-px
+     plus a darker gold, because touch users currently get nothing anywhere in
+     the purchase path. */
+  .btn,
+  .btn-primary,
+  .btn-secondary,
+  .btn-dark,
+  .btn-very-dark,
+  .btn-cart,
+  .btn-cart-disabled {
+    @apply inline-flex items-center justify-center gap-2 rounded-control border px-8 py-4 text-body font-medium leading-none transition-colors duration-fast ease-cloth;
+  }
+
+  /* The one filled gold element per view. bg-zari-500 + text-ink = 8.16:1;
+     the hover, bg-zari-600 + text-ink, is 5.66:1. White on gold is 1.58:1 and
+     must never come back. `.btn` and `.btn-dark` are the pre-existing names,
+     kept so the six un-migrated call sites keep rendering correctly. */
+  .btn,
+  .btn-primary,
+  .btn-dark,
+  .btn-cart {
+    @apply border-transparent bg-zari-500 text-ink hover:bg-zari-600 active:translate-y-px active:bg-zari-600;
+  }
+
+  .btn-cart {
+    @apply w-full;
+  }
+
+  /* Secondary, on paper: a hairline and ink type, no fill. Gold is reserved
+     for the single primary action. `.btn-very-dark` is the pre-existing name. */
+  .btn-secondary,
+  .btn-very-dark {
+    @apply border-ink bg-transparent text-ink hover:bg-ink hover:text-paper active:translate-y-px;
+  }
+
+  /* Unavailable / out of stock. Ink-600 fill with paper type is 11.1:1 on its
+     own; the `opacity-60` the call site in add-to-cart.tsx still adds drops it
+     to ~3.5:1 and should come off with that file's repaint. */
+  .btn-cart-disabled {
+    @apply w-full cursor-not-allowed border-transparent bg-ink-600 text-paper;
+  }
+
+  /* -- Forms -------------------------------------------------------------- */
+
+  /* text-body is 16px, which is the floor: anything smaller triggers iOS
+     focus zoom and fails the review's readability bar. `.field` is the paper
+     variant, `.field-ink` the one for auth pages and the cart panel. Neither
+     touches `outline` — the shared focus ring below owns that.
+
+     The resting border is `ink-faint` on BOTH grounds rather than the
+     decorative hairline tokens, and this is deliberate. WCAG 1.4.11 wants 3:1
+     for the boundary that identifies a control, and the field fills do not
+     carry it on their own: paper-raised on paper is 1.05:1 and ink-800 on
+     ink-900 is 1.08:1. `border-line-strong` would be 1.71:1 and `border-ink-600`
+     1.38:1 — both invisible. ink-faint is 3.96:1 on paper-raised and 4.20:1 on
+     ink-800, and at 1px it still reads as a hairline. `border-line` /
+     `border-ink-700` remain correct for dividers and plate edges, which are
+     decorative and exempt.
+
+     Placeholders are `ink-muted` (6.06:1), not `ink-faint` (3.67:1): a
+     placeholder is real text at 16px and needs the full 4.5:1. */
+  .field {
+    @apply block w-full rounded-control border border-ink-faint bg-paper-raised px-4 py-3 text-body text-ink transition-colors duration-fast ease-cloth placeholder:text-ink-muted hover:border-ink-muted focus:border-zari-700;
+  }
+
+  .field-ink {
+    @apply block w-full rounded-control border border-ink-faint bg-ink-800 px-4 py-3 text-body text-paper transition-colors duration-fast ease-cloth placeholder:text-paper-muted hover:border-paper-muted focus:border-zari-500;
   }
 }
 
@@ -77,16 +275,44 @@
  * A visible focus indicator is a hard requirement (WCAG 2.4.7), so this rule
  * is intentionally not overridable by a call-site utility.
  *
- * The indicator is a three-band ring so it stays visible on every surface the
- * app paints - white pages, gold buttons and the dark `bg-gray-800/900` admin
- * panels alike:
- *   0-2px  white halo   (box-shadow spread)
- *   2-4px  dark ring    (outline at outline-offset: 2px, painted above)
- *   4-6px  white halo   (box-shadow spread)
- * `var(--tw-shadow)` is re-declared last so an element's own `shadow-md` is
- * preserved while it is focused.
+ * The indicator is a three-band ring so it stays visible on both grounds this
+ * design paints - warm paper and deep warm ink alike:
+ *   0-2px  paper halo  (box-shadow spread)
+ *   2-4px  ink ring    (outline at outline-offset: 2px, painted above)
+ *   4-6px  paper halo  (box-shadow spread)
+ * On paper the ink ring carries it (16.0:1); on an ink band the paper halo
+ * does (16.6:1). `var(--tw-shadow)` is re-declared last so an element's own
+ * shadow-card is preserved while it is focused.
  * ------------------------------------------------------------------------- */
 :where(
+  a[href],
+  area[href],
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  [contenteditable='true'],
+  [role='button'],
+  [role='link'],
+  [role='tab'],
+  [role='menuitem'],
+  [role='option'],
+  [role='switch'],
+  [role='checkbox'],
+  [role='radio'],
+  [tabindex]:not([tabindex^='-'])
+):focus-visible {
+  outline: 2px solid var(--kc-focus-ring) !important;
+  outline-offset: 2px !important;
+  box-shadow:
+    0 0 0 6px var(--kc-focus-halo),
+    var(--tw-shadow, 0 0 #0000) !important;
+}
+
+/* Windows High Contrast / forced-colors: let the OS pick the ring colour. */
+@media (forced-colors: active) {
+  :where(
     a[href],
     area[href],
     button,
@@ -105,32 +331,6 @@
     [role='radio'],
     [tabindex]:not([tabindex^='-'])
   ):focus-visible {
-  outline: 2px solid var(--kc-focus-ring) !important;
-  outline-offset: 2px !important;
-  box-shadow: 0 0 0 6px var(--kc-focus-halo), var(--tw-shadow, 0 0 #0000) !important;
-}
-
-/* Windows High Contrast / forced-colors: let the OS pick the ring colour. */
-@media (forced-colors: active) {
-  :where(
-      a[href],
-      area[href],
-      button,
-      input,
-      select,
-      textarea,
-      summary,
-      [contenteditable='true'],
-      [role='button'],
-      [role='link'],
-      [role='tab'],
-      [role='menuitem'],
-      [role='option'],
-      [role='switch'],
-      [role='checkbox'],
-      [role='radio'],
-      [tabindex]:not([tabindex^='-'])
-    ):focus-visible {
     outline: 3px solid Highlight !important;
     outline-offset: 2px !important;
     box-shadow: none !important;
@@ -140,11 +340,11 @@
 /* ---------------------------------------------------------------------------
  * Reduced motion.
  *
- * The app uses fadeUp / fadeIn / fadeOut / marquee / blink keyframes plus
- * `transition-all duration-300` on most interactive elements. Collapsing the
- * durations (rather than setting `animation: none`) is deliberate: fadeUp and
- * fadeOut use `forwards`, so they snap to their final frame and the content
- * stays in its intended end state instead of being stranded mid-animation.
+ * Collapsing the durations (rather than setting `animation: none`) is
+ * deliberate: fadeUp and clothReveal use a forwards/both fill, so they snap to
+ * their final frame - visible, un-clipped - instead of being stranded at
+ * `clip-path: inset(0 0 100% 0)` with the image invisible. The delay is zeroed
+ * too, which neutralises the reveal stagger and the animation-delay utilities.
  * ------------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce) {
   html {
@@ -169,11 +369,10 @@
     opacity: 1 !important;
   }
 
-  /* The promo ticker is an infinite decorative scroll (`animate-carousel`
-     from tailwind.config.js, and the injected `.rfm-marquee` rule that
-     react-fast-marquee ships in <Discounts />). Stop it outright rather than
-     letting the clamped iteration count flash a single frame of travel. */
-  .animate-carousel,
+  /* The promo ticker is an infinite decorative scroll - the `.rfm-marquee`
+     rule react-fast-marquee injects in <Discounts />. Stop it outright rather
+     than letting the clamped iteration count flash a single frame of travel.
+     (The design deletes the marquee outright; this stays until it does.) */
   .rfm-marquee {
     animation: none !important;
     transform: none !important;

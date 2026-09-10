@@ -26,8 +26,11 @@ function Grid({ className, children, ...props }: React.ComponentProps<'ul'>) {
       // Column classes are merged with `cn` (tailwind-merge), so a caller's
       // `grid-cols-*` actually replaces the default instead of racing it in
       // the stylesheet.
+      // Asymmetric gutters - tight horizontal, generous vertical - are what
+      // make a catalogue read as editorial rather than as a table. 2-up on
+      // phones, never 1-up.
       className={cn(
-        'grid w-full list-none grid-cols-2 gap-x-4 gap-y-8 p-0 sm:gap-x-6 md:grid-cols-3',
+        'grid w-full list-none grid-cols-2 gap-x-4 gap-y-10 p-0 md:grid-cols-3 md:gap-x-6 md:gap-y-14 xl:grid-cols-4',
         className
       )}
     >
@@ -112,12 +115,24 @@ function buildPageList(currentPage: number, totalPages: number): (number | 'gap'
   return items;
 }
 
+/*
+ * Paging controls sit on the catalogue's PAPER ground.
+ *
+ * The current page is marked with an ink fill, not a gold one. Gold is a
+ * thread here: exactly one filled gold element is allowed per view and on a
+ * listing page that budget belongs to a real action (the empty state's primary
+ * CTA), not to a state marker. Idle pills borrow the metal only as a hairline
+ * on hover, and the hover TYPE stays `ink` rather than `zari-700` because
+ * these pills are 14px and zari-700 is only AA at 16px and up.
+ */
 const PILL_BASE =
-  'inline-flex h-10 min-w-[2.5rem] items-center justify-center gap-1.5 rounded-full px-3 text-sm font-medium transition-colors duration-200';
-const PILL_IDLE =
-  'border border-white/15 text-gray-300 hover:border-[#daa520] hover:text-[#daa520]';
-const PILL_ACTIVE = 'bg-[#daa520] text-black';
-const PILL_INACTIVE = 'border border-white/5 text-gray-500';
+  'inline-flex h-10 min-w-10 items-center justify-center gap-1.5 rounded-control px-3 text-body-sm font-medium transition-colors duration-fast ease-cloth';
+const PILL_IDLE = 'border border-line text-ink-muted hover:border-zari-700 hover:text-ink';
+const PILL_ACTIVE = 'border border-ink bg-ink text-paper';
+/* Disabled prev/next. `ink-faint` is 3.67:1, which normal-size text may not
+   use - but these are `aria-hidden` inactive controls, which WCAG 1.4.3
+   exempts, and dimming them is the only thing that says "unavailable". */
+const PILL_INACTIVE = 'border border-line text-ink-faint';
 
 function ChevronLeft() {
   return (
@@ -207,7 +222,7 @@ export function GridPagination({
 
         {pages.map((entry, index) =>
           entry === 'gap' ? (
-            <li key={`gap-${index}`} aria-hidden="true" className="px-1 text-sm text-gray-500">
+            <li key={`gap-${index}`} aria-hidden="true" className="px-1 text-body-sm text-ink-faint">
               &hellip;
             </li>
           ) : (
@@ -249,7 +264,7 @@ export function GridPagination({
         </li>
       </ul>
 
-      <p className="text-sm text-gray-400">
+      <p className="num text-body-sm text-ink-muted">
         Showing {rangeStart}&ndash;{rangeEnd} of {total} {itemLabel}
       </p>
     </nav>
@@ -290,10 +305,15 @@ function NoResultsIcon() {
   );
 }
 
-const ACTION_BASE =
-  'inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold transition-colors duration-200';
-const ACTION_PRIMARY = 'bg-[#daa520] text-black hover:bg-[#c08f16]';
-const ACTION_SECONDARY = 'border border-[#daa520]/40 text-[#daa520] hover:bg-[#daa520]/10';
+/*
+ * The empty state's actions are the one place on a listing page that earns the
+ * filled gold element, so they use the shared button recipes verbatim:
+ * `.btn-primary` is `bg-zari-500` + `text-ink` (8.16:1), `.btn-secondary` is a
+ * bare ink hairline. Both already carry the geometry, the press and the
+ * timing, so there is no local ACTION_BASE any more.
+ */
+const ACTION_PRIMARY = 'btn-primary';
+const ACTION_SECONDARY = 'btn-secondary';
 
 /**
  * The state most visitors of a broken catalogue actually saw. It has to explain
@@ -315,27 +335,26 @@ export function GridEmptyState({
   icon?: React.ReactNode;
 }) {
   return (
-    <div className="flex w-full flex-col items-center gap-6 rounded-2xl border border-[#daa520]/20 bg-white/[0.03] px-6 py-14 text-center">
-      <span className="flex h-16 w-16 items-center justify-center rounded-full border border-[#daa520]/30 bg-[#daa520]/10 text-[#daa520]">
+    <div className="flex w-full flex-col items-center gap-6 rounded-plate border border-line bg-paper-raised px-6 py-14 text-center">
+      <span className="flex h-16 w-16 items-center justify-center rounded-pill border border-line-strong bg-paper-sunk text-ink-muted">
         {icon ?? <NoResultsIcon />}
       </span>
 
-      <div className="flex max-w-md flex-col gap-2">
-        <h2 className="font-lora text-2xl font-bold text-white">{title}</h2>
-        <p className="text-base leading-relaxed text-gray-300">{message}</p>
+      <div className="flex max-w-[62ch] flex-col items-center gap-3">
+        <h2 className="font-display text-h2 text-ink">{title}</h2>
+        <div className="rule-zari w-16" aria-hidden="true" />
+        <p className="text-lead text-ink-muted">{message}</p>
       </div>
 
       {suggestions.length > 0 && (
         <div className="flex flex-col items-center gap-3">
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
-            {suggestionsLabel}
-          </p>
+          <p className="eyebrow text-ink-muted">{suggestionsLabel}</p>
           <ul className="flex flex-wrap items-center justify-center gap-2">
             {suggestions.map((suggestion) => (
               <li key={suggestion.href}>
                 <Link
                   href={suggestion.href}
-                  className="inline-flex items-center rounded-full border border-white/15 px-4 py-2 text-sm capitalize text-gray-200 transition-colors duration-200 hover:border-[#daa520] hover:text-[#daa520]"
+                  className="inline-flex items-center rounded-control border border-line px-4 py-2 text-body-sm capitalize text-ink-muted transition-colors duration-fast ease-cloth hover:border-zari-700 hover:text-ink"
                 >
                   {suggestion.title}
                 </Link>
@@ -351,10 +370,7 @@ export function GridEmptyState({
             <Link
               key={`${action.variant ?? 'primary'}-${action.href}`}
               href={action.href}
-              className={cn(
-                ACTION_BASE,
-                action.variant === 'secondary' ? ACTION_SECONDARY : ACTION_PRIMARY
-              )}
+              className={cn(action.variant === 'secondary' ? ACTION_SECONDARY : ACTION_PRIMARY)}
             >
               {action.label}
             </Link>

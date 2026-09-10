@@ -13,7 +13,15 @@ import { getCartSessionId } from '@/components/cart/actions';
 import type { ShippingAddress } from '@/lib/supabase/types';
 import { formatPrice } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode
+} from 'react';
 
 // Force dynamic rendering to avoid localStorage issues
 export const dynamic = 'force-dynamic';
@@ -103,7 +111,10 @@ const isValidIndianPhone = (value: string): boolean => {
 /** Indian PIN codes are exactly six digits and never start with 0. */
 const isValidPincode = (value: string): boolean => /^[1-9]\d{5}$/.test(value);
 
-const validateAddressField = (field: AddressField, rawValue: string | undefined): string | undefined => {
+const validateAddressField = (
+  field: AddressField,
+  rawValue: string | undefined
+): string | undefined => {
   const value = (rawValue ?? '').trim();
 
   if (!value) {
@@ -157,7 +168,7 @@ const getLineSize = (line: CartLineWithSize): string | undefined => {
   if (direct) return direct;
 
   const option = line.merchandise?.selectedOptions?.find(
-    entry => entry.name.toLowerCase() === 'size' && entry.value.trim().length > 0
+    (entry) => entry.name.toLowerCase() === 'size' && entry.value.trim().length > 0
   );
 
   return option?.value.trim();
@@ -165,7 +176,8 @@ const getLineSize = (line: CartLineWithSize): string | undefined => {
 
 /** A line is only usable if it can be priced — an unpriced line must not be charged for. */
 const isUsableLine = (line: CartLineWithSize | undefined): line is CartLineWithSize =>
-  Boolean(line?.merchandise?.product?.id) && Number.isFinite(Number(line?.merchandise?.product?.price));
+  Boolean(line?.merchandise?.product?.id) &&
+  Number.isFinite(Number(line?.merchandise?.product?.price));
 
 const gstLabel = `GST (${Math.round(GST_RATE * 100)}%)`;
 
@@ -222,11 +234,11 @@ export default function CheckoutPage() {
   const costBreakdown = useMemo(() => computeCartCost(cartLines), [cartLines]);
 
   const handleInputChange = (field: AddressField, value: string) => {
-    setShippingAddress(prev => ({ ...prev, [field]: value }));
+    setShippingAddress((prev) => ({ ...prev, [field]: value }));
 
     // Clear an existing error as soon as the shopper fixes it; never introduce
     // a new error mid-typing.
-    setAddressErrors(prev => {
+    setAddressErrors((prev) => {
       if (!prev[field] || validateAddressField(field, value)) return prev;
       const next = { ...prev };
       delete next[field];
@@ -237,7 +249,7 @@ export default function CheckoutPage() {
   const handleInputBlur = (field: AddressField) => {
     const message = validateAddressField(field, shippingAddress[field]);
 
-    setAddressErrors(prev => {
+    setAddressErrors((prev) => {
       const next = { ...prev };
       if (message) {
         next[field] = message;
@@ -254,7 +266,7 @@ export default function CheckoutPage() {
     const errors = validateAddress(shippingAddress);
     setAddressErrors(errors);
 
-    const firstInvalid = ADDRESS_FIELD_ORDER.find(field => errors[field]);
+    const firstInvalid = ADDRESS_FIELD_ORDER.find((field) => errors[field]);
     if (firstInvalid) {
       addressFieldRefs.current[firstInvalid]?.focus();
       return;
@@ -304,7 +316,7 @@ export default function CheckoutPage() {
     try {
       const order = await placeOrder({
         sessionId,
-        items: cartLines.map(line => ({
+        items: cartLines.map((line) => ({
           product: line.merchandise.product,
           quantity: line.quantity,
           // So placeOrder clears only these lines, not the whole session.
@@ -353,19 +365,19 @@ export default function CheckoutPage() {
 
     return (
       <div className={wrapperClassName} key={field}>
-        <label htmlFor={inputId} className="block text-sm font-medium mb-2">
+        <label htmlFor={inputId} className="mb-2 block text-body-sm font-medium text-ink">
           {ADDRESS_FIELD_LABELS[field]}
           {isRequired ? <span aria-hidden="true"> *</span> : null}
         </label>
         <input
           id={inputId}
           name={field}
-          ref={element => {
+          ref={(element) => {
             addressFieldRefs.current[field] = element;
           }}
           type={type}
           value={shippingAddress[field] ?? ''}
-          onChange={event => handleInputChange(field, event.target.value)}
+          onChange={(event) => handleInputChange(field, event.target.value)}
           onBlur={() => handleInputBlur(field)}
           autoComplete={autoComplete}
           inputMode={inputMode}
@@ -374,12 +386,12 @@ export default function CheckoutPage() {
           aria-required={isRequired}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
-          className={`w-full px-4 py-3 bg-gray-800 border rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#daa520] ${
-            error ? 'border-red-400' : 'border-gray-700'
+          className={`field ${
+            error ? 'border-madder hover:border-madder focus:border-madder' : ''
           }`}
         />
         {error ? (
-          <p id={errorId} role="alert" className="mt-2 text-sm text-red-400">
+          <p id={errorId} role="alert" className="mt-2 text-body-sm text-madder">
             {error}
           </p>
         ) : null}
@@ -390,10 +402,10 @@ export default function CheckoutPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-paper text-ink">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-[#daa520] mx-auto mb-4"></div>
-          <h1 className="text-2xl font-bold text-white">Loading your cart...</h1>
+          <div className="mx-auto mb-5 h-16 w-16 animate-spin rounded-pill border-b-2 border-zari-700"></div>
+          <h1 className="font-display text-h2 text-ink">Loading your cart...</h1>
         </div>
       </div>
     );
@@ -403,27 +415,22 @@ export default function CheckoutPage() {
   // never be replaced by the empty-cart screen.
   if (currentStep !== 'confirmation' && (cartLines.length === 0 || costBreakdown.total <= 0)) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center px-4">
-          <h1 className="text-2xl font-bold text-white mb-4">
+      <div className="flex min-h-screen items-center justify-center bg-paper text-ink">
+        <div className="px-5 text-center">
+          <p className="eyebrow text-ink-muted">Checkout</p>
+          <h1 className="mt-3 font-display text-h2 text-ink">
             {loadError ? 'We could not load your cart' : 'Your cart is empty'}
           </h1>
-          <p className="text-gray-300 mb-4">
+          <p className="mx-auto mt-4 max-w-[46ch] text-body text-ink-muted">
             {loadError ?? 'Add some items to your cart to proceed with checkout'}
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
             {loadError ? (
-              <button
-                onClick={fetchCart}
-                className="bg-[#daa520] text-black px-6 py-3 rounded-lg font-semibold hover:bg-[#b38a1d]"
-              >
+              <button onClick={fetchCart} className="btn-primary">
                 Try Again
               </button>
             ) : null}
-            <button
-              onClick={() => router.push('/')}
-              className="bg-[#daa520] text-black px-6 py-3 rounded-lg font-semibold hover:bg-[#b38a1d]"
-            >
+            <button onClick={() => router.push('/')} className="btn-secondary">
               Continue Shopping
             </button>
           </div>
@@ -433,10 +440,10 @@ export default function CheckoutPage() {
   }
 
   const orderSummary = (
-    <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-6">
-      <h3 className="text-lg font-semibold mb-3">Order Summary</h3>
-      <div className="space-y-2">
-        {cartLines.map(line => {
+    <div className="mb-6 rounded-plate border border-line bg-paper-sunk p-5">
+      <h3 className="eyebrow mb-4 text-ink-muted">Order Summary</h3>
+      <div className="space-y-2 text-body text-ink">
+        {cartLines.map((line) => {
           const size = getLineSize(line);
 
           return (
@@ -445,26 +452,31 @@ export default function CheckoutPage() {
                 {line.merchandise.product.title}
                 {size ? ` (Size ${size})` : ''} x {line.quantity}
               </span>
-              <span className="whitespace-nowrap">{formatPrice(computeCartCost([line]).subtotal)}</span>
+              <span className="num whitespace-nowrap">
+                {formatPrice(computeCartCost([line]).subtotal)}
+              </span>
             </div>
           );
         })}
-        <div className="border-t border-gray-600 pt-2 mt-2 space-y-2">
+        <div className="mt-3 space-y-2 border-t border-line pt-3">
           <div className="flex justify-between">
-            <span>Subtotal</span>
-            <span>{formatPrice(costBreakdown.subtotal)}</span>
+            <span className="text-ink-muted">Subtotal</span>
+            <span className="num">{formatPrice(costBreakdown.subtotal)}</span>
           </div>
           <div className="flex justify-between">
-            <span>{gstLabel}</span>
-            <span>{formatPrice(costBreakdown.gst)}</span>
+            <span className="num text-ink-muted">{gstLabel}</span>
+            <span className="num">{formatPrice(costBreakdown.gst)}</span>
           </div>
           <div className="flex justify-between">
-            <span>Shipping</span>
-            <span>{costBreakdown.shipping > 0 ? formatPrice(costBreakdown.shipping) : 'Free'}</span>
+            <span className="text-ink-muted">Shipping</span>
+            <span className="num">
+              {costBreakdown.shipping > 0 ? formatPrice(costBreakdown.shipping) : 'Free'}
+            </span>
           </div>
-          <div className="flex justify-between font-semibold border-t border-gray-600 pt-2">
-            <span>Total</span>
-            <span className="text-[#daa520]">{formatPrice(costBreakdown.total)}</span>
+          <div className="rule-zari !mt-3" />
+          <div className="flex items-center justify-between">
+            <span className="font-medium">Total</span>
+            <span className="num text-price text-zari-700">{formatPrice(costBreakdown.total)}</span>
           </div>
         </div>
       </div>
@@ -472,18 +484,21 @@ export default function CheckoutPage() {
   );
 
   return (
-    <div className="min-h-screen bg-black text-white py-8">
-      <div className="max-w-4xl mx-auto px-4">
+    <div className="min-h-screen bg-paper py-16 text-ink md:py-24">
+      <div className="mx-auto max-w-4xl px-5 md:px-8">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-[#daa520]">Checkout</h1>
-          <ol aria-label="Checkout progress" className="flex justify-center mt-4 space-x-4">
+        <div className="mb-10 text-center">
+          <div className="rule-zari mx-auto w-16" />
+          <h1 className="mt-5 font-display text-h1 text-ink">Checkout</h1>
+          <ol aria-label="Checkout progress" className="mt-6 flex justify-center gap-4">
             {CHECKOUT_STEPS.map((step, index) => (
               <li
                 key={step.id}
                 aria-current={currentStep === step.id ? 'step' : undefined}
-                className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  currentStep === step.id ? 'bg-[#daa520] text-black' : 'bg-gray-600 text-white'
+                className={`num flex h-8 w-8 items-center justify-center rounded-pill text-body-sm ${
+                  currentStep === step.id
+                    ? 'bg-ink-900 text-paper'
+                    : 'border border-line-strong bg-paper text-ink-muted'
                 }`}
               >
                 <span aria-hidden="true">{index + 1}</span>
@@ -498,10 +513,10 @@ export default function CheckoutPage() {
           <form
             noValidate
             onSubmit={handleAddressSubmit}
-            className="bg-gray-900 border border-gray-800 rounded-lg p-6"
+            className="rounded-plate border border-line bg-paper-raised p-6 md:p-8"
           >
-            <h2 className="text-2xl font-bold mb-6">Shipping Address</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <h2 className="mb-6 font-display text-h2 text-ink">Shipping Address</h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {renderAddressField({ field: 'fullName', autoComplete: 'name' })}
               {renderAddressField({
                 field: 'phone',
@@ -530,11 +545,8 @@ export default function CheckoutPage() {
               })}
               {renderAddressField({ field: 'country', autoComplete: 'country-name' })}
             </div>
-            <div className="mt-6">
-              <button
-                type="submit"
-                className="w-full bg-[#daa520] text-black py-3 px-6 rounded-lg font-semibold hover:bg-[#b38a1d] transition-colors"
-              >
+            <div className="mt-8">
+              <button type="submit" className="btn-cart">
                 Continue to Payment
               </button>
             </div>
@@ -546,13 +558,13 @@ export default function CheckoutPage() {
           <form
             noValidate
             onSubmit={handlePlaceOrder}
-            className="bg-gray-900 border border-gray-800 rounded-lg p-6"
+            className="rounded-plate border border-line bg-paper-raised p-6 md:p-8"
           >
-            <h2 className="text-2xl font-bold mb-6">Payment Method</h2>
+            <h2 className="mb-6 font-display text-h2 text-ink">Payment Method</h2>
 
-            <fieldset className="space-y-4 mb-6">
+            <fieldset className="mb-6 space-y-4">
               <legend className="sr-only">Choose how you want to pay</legend>
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center gap-3">
                 <input
                   type="radio"
                   id="cod"
@@ -563,14 +575,14 @@ export default function CheckoutPage() {
                     setPaymentMethod('cash_on_delivery');
                     setPaymentError(null);
                   }}
-                  className="text-[#daa520] focus:ring-[#daa520]"
+                  className="h-4 w-4 shrink-0 accent-ink"
                 />
-                <label htmlFor="cod" className="text-lg">
+                <label htmlFor="cod" className="text-body text-ink">
                   Cash on Delivery
                 </label>
               </div>
 
-              <div className="flex items-center space-x-3">
+              <div className="flex items-center gap-3">
                 <input
                   type="radio"
                   id="upi"
@@ -581,9 +593,9 @@ export default function CheckoutPage() {
                     setPaymentMethod('upi');
                     setPaymentError(null);
                   }}
-                  className="text-[#daa520] focus:ring-[#daa520]"
+                  className="h-4 w-4 shrink-0 accent-ink"
                 />
-                <label htmlFor="upi" className="text-lg">
+                <label htmlFor="upi" className="text-body text-ink">
                   UPI Payment
                 </label>
               </div>
@@ -591,7 +603,10 @@ export default function CheckoutPage() {
 
             {paymentMethod === 'upi' && (
               <div className="mb-6">
-                <label htmlFor="store-upi-id" className="block text-sm font-medium mb-2">
+                <label
+                  htmlFor="store-upi-id"
+                  className="mb-2 block text-body-sm font-medium text-ink"
+                >
                   UPI ID
                 </label>
                 <input
@@ -599,23 +614,27 @@ export default function CheckoutPage() {
                   type="text"
                   value={STORE_UPI_ID}
                   readOnly
-                  className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-200"
+                  className="field num bg-paper-sunk"
                 />
-                <p className="text-xs text-gray-300 mt-1">This is our registered UPI ID for payments</p>
+                <p className="mt-2 text-body-sm text-ink-muted">
+                  This is our registered UPI ID for payments
+                </p>
 
                 {/* UPI payment instructions */}
-                <div className="mt-4 p-4 bg-gray-800 border border-gray-700 rounded-lg">
-                  <h3 className="text-lg font-semibold text-[#daa520] mb-3 text-center">
-                    Pay with any UPI app
-                  </h3>
-                  <div className="flex flex-col items-center space-y-4">
-                    <div className="w-full max-w-xs bg-white p-4 rounded-lg text-center text-gray-900">
-                      <div className="text-sm font-semibold">Pay to</div>
-                      <div className="text-base font-mono break-all">{STORE_UPI_ID}</div>
-                      <div className="text-lg font-bold mt-2">{formatPrice(costBreakdown.total)}</div>
+                <div className="mt-5 rounded-plate border border-line bg-paper-sunk p-5">
+                  <h3 className="mb-4 text-center text-h3 text-ink">Pay with any UPI app</h3>
+                  <div className="flex flex-col items-center gap-5">
+                    <div className="w-full max-w-xs rounded-plate border border-line bg-paper-raised p-5 text-center">
+                      <div className="eyebrow text-ink-muted">Pay to</div>
+                      <div className="mt-2 break-all font-mono text-body text-ink">
+                        {STORE_UPI_ID}
+                      </div>
+                      <div className="num mt-3 text-price text-zari-700">
+                        {formatPrice(costBreakdown.total)}
+                      </div>
                     </div>
 
-                    <ul className="text-center text-gray-300 text-sm space-y-1">
+                    <ul className="space-y-1 text-center text-body-sm text-ink-muted">
                       <li>Open any UPI app (PhonePe, Google Pay, Paytm)</li>
                       <li>
                         Send {formatPrice(costBreakdown.total)} to {STORE_UPI_ID}
@@ -627,26 +646,30 @@ export default function CheckoutPage() {
 
                 {/* Payment confirmation */}
                 <div className="mt-4">
-                  <div className="flex items-start space-x-3">
+                  <div className="flex items-start gap-3">
                     <input
                       type="checkbox"
                       id="paymentConfirmed"
                       ref={paymentConfirmRef}
                       checked={paymentConfirmed}
-                      onChange={event => {
+                      onChange={(event) => {
                         setPaymentConfirmed(event.target.checked);
                         if (event.target.checked) setPaymentError(null);
                       }}
                       aria-invalid={paymentError ? true : undefined}
                       aria-describedby={paymentError ? 'paymentConfirmed-error' : undefined}
-                      className="mt-1 w-4 h-4 text-[#daa520] bg-gray-800 border-gray-700 rounded focus:ring-[#daa520] focus:ring-2"
+                      className="mt-1 h-4 w-4 shrink-0 rounded-xs accent-ink"
                     />
-                    <label htmlFor="paymentConfirmed" className="text-sm text-gray-200">
+                    <label htmlFor="paymentConfirmed" className="text-body-sm text-ink">
                       {`I confirm that I have completed the UPI payment of ${formatPrice(costBreakdown.total)}`}
                     </label>
                   </div>
                   {paymentError ? (
-                    <p id="paymentConfirmed-error" role="alert" className="mt-2 text-sm text-red-400">
+                    <p
+                      id="paymentConfirmed-error"
+                      role="alert"
+                      className="mt-2 text-body-sm text-madder"
+                    >
                       {paymentError}
                     </p>
                   ) : null}
@@ -658,18 +681,18 @@ export default function CheckoutPage() {
             {orderSummary}
 
             {/* Shipping recap, so the shopper can check the address before paying */}
-            <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-6">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg font-semibold">Delivering to</h3>
+            <div className="mb-6 rounded-plate border border-line bg-paper-sunk p-5">
+              <div className="mb-3 flex items-center justify-between gap-4">
+                <h3 className="eyebrow text-ink-muted">Delivering to</h3>
                 <button
                   type="button"
                   onClick={() => setCurrentStep('address')}
-                  className="text-sm text-[#daa520] underline hover:text-[#f0c14b]"
+                  className="thread-link text-body font-medium text-zari-700"
                 >
                   Edit
                 </button>
               </div>
-              <address className="not-italic text-sm text-gray-200 leading-6">
+              <address className="text-body not-italic leading-relaxed text-ink-muted">
                 {shippingAddress.fullName}
                 <br />
                 {shippingAddress.addressLine1}
@@ -691,17 +714,17 @@ export default function CheckoutPage() {
             {orderError ? (
               <p
                 role="alert"
-                className="mb-6 rounded-lg border border-red-400 bg-red-900/40 px-4 py-3 text-sm text-red-100"
+                className="mb-6 rounded-control border border-madder bg-madder/10 px-4 py-3 text-body-sm text-madder"
               >
                 {orderError}
               </p>
             ) : null}
 
-            <div className="flex space-x-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => setCurrentStep('address')}
-                className="flex-1 bg-gray-700 text-white py-3 px-6 rounded-lg font-semibold hover:bg-gray-600 transition-colors"
+                className="btn-secondary w-full"
               >
                 Back
               </button>
@@ -709,13 +732,11 @@ export default function CheckoutPage() {
                 type="submit"
                 disabled={isPlacingOrder}
                 aria-busy={isPlacingOrder}
-                className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-colors ${
-                  isPlacingOrder
-                    ? 'bg-gray-600 text-gray-200 cursor-not-allowed'
-                    : 'bg-[#daa520] text-black hover:bg-[#b38a1d]'
-                }`}
+                className={isPlacingOrder ? 'btn-cart-disabled' : 'btn-cart'}
               >
-                {isPlacingOrder ? 'Processing...' : `Place Order - ${formatPrice(costBreakdown.total)}`}
+                {isPlacingOrder
+                  ? 'Processing...'
+                  : `Place Order - ${formatPrice(costBreakdown.total)}`}
               </button>
             </div>
           </form>
@@ -723,47 +744,50 @@ export default function CheckoutPage() {
 
         {/* Step 3: Order Confirmation */}
         {currentStep === 'confirmation' && (
-          <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 text-center">
-            <div className="text-6xl mb-4" aria-hidden="true">
+          <div className="rounded-plate border border-line bg-paper-raised p-8 text-center md:p-10">
+            <div className="mb-5 text-6xl" aria-hidden="true">
               ✅
             </div>
-            <h2 className="text-2xl font-bold mb-4 text-[#daa520]">Order Placed Successfully!</h2>
-            <p className="text-gray-200 mb-6">
+            <p className="eyebrow text-ink-muted">Confirmed</p>
+            <h2 className="mt-3 font-display text-h2 text-ink">Order Placed Successfully!</h2>
+            <p className="mx-auto mt-4 max-w-[46ch] text-body text-ink-muted">
               Thank you for your order. We&apos;ll process it and ship it to your address soon.
             </p>
             {placedOrder ? (
-              <dl className="mx-auto mb-6 max-w-sm space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <dt className="text-gray-300">Order reference</dt>
-                  <dd className="font-mono">{placedOrder.id.slice(0, 8).toUpperCase()}</dd>
+              <dl className="mx-auto my-8 max-w-sm space-y-3 text-body-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-ink-muted">Order reference</dt>
+                  <dd className="num font-mono text-ink">
+                    {placedOrder.id.slice(0, 8).toUpperCase()}
+                  </dd>
                 </div>
-                <div className="flex justify-between">
-                  <dt className="text-gray-300">Amount</dt>
-                  <dd className="font-semibold text-[#daa520]">
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-ink-muted">Amount</dt>
+                  <dd className="num text-price text-zari-700">
                     {formatPrice(Number(placedOrder.total_amount) || 0)}
                   </dd>
                 </div>
-                <div className="flex justify-between">
-                  <dt className="text-gray-300">Payment</dt>
-                  <dd>{placedOrder.payment_method === 'upi' ? 'UPI' : 'Cash on Delivery'}</dd>
+                <div className="flex items-center justify-between gap-4">
+                  <dt className="text-ink-muted">Payment</dt>
+                  <dd className="text-ink">
+                    {placedOrder.payment_method === 'upi' ? 'UPI' : 'Cash on Delivery'}
+                  </dd>
                 </div>
               </dl>
             ) : null}
-            <div className="space-y-4">
-              <button
-                type="button"
-                onClick={() => router.push('/')}
-                className="w-full bg-[#daa520] text-black py-3 px-6 rounded-lg font-semibold hover:bg-[#b38a1d] transition-colors"
-              >
+            <div className="mt-8 space-y-4">
+              <button type="button" onClick={() => router.push('/')} className="btn-cart">
                 Continue Shopping
               </button>
-              <button
-                type="button"
-                onClick={() => router.push('/orders')}
-                className="w-full text-sm text-gray-300 underline hover:text-[#daa520] transition-colors"
-              >
-                View My Orders
-              </button>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => router.push('/orders')}
+                  className="thread-link text-body font-medium text-zari-700"
+                >
+                  View My Orders
+                </button>
+              </div>
             </div>
           </div>
         )}

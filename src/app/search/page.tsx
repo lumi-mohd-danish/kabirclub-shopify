@@ -75,6 +75,9 @@ export default async function SearchPage({ searchParams }: { searchParams?: Sear
 
   const categoryLabel = category?.replace(/-/g, ' ');
   const heading = searchValue ? 'Search Results' : (categoryLabel ?? 'All Products');
+  // The letterspaced eyebrow sits above every heading in this design; it names
+  // the register the page is in, which the heading itself no longer has to.
+  const eyebrow = searchValue ? 'Search' : categoryLabel ? 'Collection' : 'Catalogue';
   const rangeStart = offset + 1;
   const rangeEnd = offset + products.length;
   const resultsLabel = total === 1 ? 'result' : 'results';
@@ -87,32 +90,36 @@ export default async function SearchPage({ searchParams }: { searchParams?: Sear
   }));
 
   return (
-    <section className="mx-auto flex w-full max-w-[904px] flex-col items-center gap-[48px] px-4 py-[48px]">
-      <div className="flex w-full max-w-[800px] flex-col gap-8">
+    <section className="container-page section flex flex-col items-center gap-12">
+      <div className="flex w-full max-w-3xl flex-col gap-8">
         <div className="flex flex-col items-center gap-4">
-          <div className="text-center">
-            <h1 className="font-lora text-3xl font-bold capitalize text-[#daa520]">{heading}</h1>
+          <div className="flex flex-col items-center gap-3 text-center">
+            <p className="eyebrow text-ink-muted">{eyebrow}</p>
+            {/* The woven zari rule: gold as a thread, never as a field. */}
+            <div className="rule-zari w-16" />
+            <h1 className="font-display text-h1 capitalize text-ink">{heading}</h1>
             {products.length > 0 && (
-              <p className="mt-2 text-lg text-gray-300">
+              <p className="num text-body text-ink-muted">
                 Showing {rangeStart}&ndash;{rangeEnd} of {total} {resultsLabel}
                 {searchValue ? (
                   <>
                     {' for '}
-                    <span className="font-bold text-[#daa520]">&quot;{searchValue}&quot;</span>
+                    {/* Gold as text on paper must be zari-700 at >=16px / >=500. */}
+                    <span className="font-medium text-zari-700">&quot;{searchValue}&quot;</span>
                   </>
                 ) : null}
               </p>
             )}
           </div>
 
-          <div className="w-full max-w-[500px]">
+          <div className="w-full max-w-lg">
             <SearchInput />
           </div>
         </div>
 
         {products.length > 0 && (
           <div className="flex flex-wrap items-center justify-end gap-4">
-            <span className="text-lg font-medium text-gray-300">Sort by:</span>
+            <span className="eyebrow text-ink-muted">Sort by:</span>
             <FilterList list={SORT_OPTIONS} />
           </div>
         )}

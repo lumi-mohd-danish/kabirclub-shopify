@@ -132,21 +132,36 @@ export default function CartModal({
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         onClick={handleCartButtonClick}
-        className={`header-link ml-0 [&>*]:transition-all [&>*]:duration-300 hover:[&>*]:opacity-50 relative ${
+        /*
+          The trigger lives in the header's INK band, so its quiet tone is
+          `paper-muted` resolving to `paper`. The old `[&>*]:transition-all`
+          pair faded the whole icon to 50% opacity on hover, which is a
+          contrast loss dressed as feedback; a colour change says the same
+          thing without dimming anything. The thread underline came off too —
+          an icon button has nothing to underline.
+        */
+        className={`relative ml-0 text-paper-muted transition-colors duration-fast ease-cloth hover:text-paper ${
           !isAuthenticated() ? 'opacity-70' : ''
         }`}
       >
         <div className="relative">
-          <svg className="w-6 h-6 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <svg
+            className="h-6 w-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6M7 13l-1.5 6m0 0h9m-9 0h9" />
           </svg>
           {totalQuantity > 0 && (
-            <span className="absolute -top-2 -right-2 bg-[#daa520] text-black text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+            /* A gold FILL, so the figure on it is ink (8.16:1), not white. */
+            <span className="num absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-pill bg-zari-500 text-caption font-medium text-ink">
               {totalQuantity}
             </span>
           )}
           {!isAuthenticated() && (
-            <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+            <div className="absolute -right-1 -top-1 h-2 w-2 rounded-pill bg-madder"></div>
           )}
         </div>
       </button>
@@ -159,31 +174,46 @@ export default function CartModal({
       */}
       <Transition show={isOpen}>
         <Dialog onClose={closeCart} className="relative z-50" initialFocus={closeButtonRef}>
+          {/*
+            Retimed to the panel tempo (420ms, ease-cloth) and narrowed off
+            `transition-all`. Both `backdrop-blur-[.5px]` utilities are gone —
+            half a pixel of blur is imperceptible and it forced a compositor
+            layer over the whole viewport for nothing.
+          */}
           <Transition.Child
             as={Fragment}
-            enter="transition-all ease-in-out duration-300"
-            enterFrom="opacity-0 backdrop-blur-none"
-            enterTo="opacity-100 backdrop-blur-[.5px]"
-            leave="transition-all ease-in-out duration-200"
-            leaveFrom="opacity-100 backdrop-blur-[.5px]"
-            leaveTo="opacity-0 backdrop-blur-none"
+            enter="transition-opacity duration-panel ease-cloth"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="transition-opacity duration-panel ease-cloth"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
           >
-            <div className="fixed inset-0 bg-black/30" aria-hidden="true" />
+            <div className="fixed inset-0 bg-ink-900/60" aria-hidden="true" />
           </Transition.Child>
           <Transition.Child
             as={Fragment}
-            enter="transition-all ease-in-out duration-300"
+            enter="transition-transform duration-panel ease-cloth"
             enterFrom="translate-x-full"
             enterTo="translate-x-0"
-            leave="transition-all ease-in-out duration-200"
+            leave="transition-transform duration-panel ease-cloth"
             leaveFrom="translate-x-0"
             leaveTo="translate-x-full"
           >
-            <Dialog.Panel className="fixed bottom-0 right-0 top-0 flex h-full w-full flex-col border-l border-gray-700 bg-black/90 px-4 pb-6 pt-2 text-white backdrop-blur-lg md:w-[390px]">
+            {/*
+              The drawer is an INK panel: solid `ink-900`, an `ink-700`
+              hairline down its edge and `shadow-overlay` to lift it off the
+              page. It was `bg-black/90` behind a `backdrop-blur-lg`, which is
+              a lot of paint for a surface that should simply be opaque.
+            */}
+            <Dialog.Panel className="fixed bottom-0 right-0 top-0 flex h-full w-full flex-col border-l border-ink-700 bg-ink-900 px-5 pb-6 pt-4 text-paper shadow-overlay md:w-96">
               <div className="flex items-center justify-between">
-                <Dialog.Title as="h2" className="m-0 font-lora text-[28px] font-bold text-white">
-                  My Cart
-                </Dialog.Title>
+                <div>
+                  <p className="eyebrow text-zari-500">Your selection</p>
+                  <Dialog.Title as="h2" className="m-0 mt-2 font-display text-h2 text-paper">
+                    My Cart
+                  </Dialog.Title>
+                </div>
 
                 <button ref={closeButtonRef} type="button" aria-label="Close cart" onClick={closeCart}>
                   <CloseCart />
@@ -195,16 +225,21 @@ export default function CartModal({
                 announces changes inside a region that already existed, and it
                 has to outlive the row whose failure it is reporting.
               */}
-              <p role="status" aria-live="polite" className="mt-1 text-sm text-red-400 empty:hidden">
+              <p
+                role="status"
+                aria-live="polite"
+                className="mt-3 rounded-control bg-madder px-3 py-2 text-body-sm text-paper empty:hidden"
+              >
                 {actionError ?? ''}
               </p>
 
               {lines.length === 0 ? (
                 <div className="mt-20 flex w-full flex-col items-center justify-center overflow-hidden">
                   <Image src="/images/cart.png" width="36" height="36" alt="" />
-                  <p className="mt-6 text-center font-quicksand text-2xl font-bold text-white">
+                  <p className="mt-6 text-center font-display text-h2 text-paper">
                     Your cart is empty.
                   </p>
+                  <div className="rule-zari mt-6 w-16" aria-hidden="true" />
                 </div>
               ) : (
                 <div className="flex h-full flex-col justify-between overflow-hidden p-1">
@@ -214,7 +249,7 @@ export default function CartModal({
                       const merchandiseUrl = `/product/${item.merchandise.product.handle}`;
 
                       return (
-                        <li key={item.id} className="flex w-full flex-col border-b border-gray-700">
+                        <li key={item.id} className="flex w-full flex-col border-b border-ink-700">
                           <div className="relative flex w-full flex-row justify-between px-1 py-4">
                             <div className="absolute z-40 -mt-2 ml-[55px]">
                               <DeleteItemButton
@@ -228,7 +263,7 @@ export default function CartModal({
                               onClick={closeCart}
                               className="z-30 flex flex-row space-x-4"
                             >
-                              <div className="relative h-16 w-16 cursor-pointer overflow-hidden rounded-md bg-gray-800">
+                              <div className="relative h-16 w-16 cursor-pointer overflow-hidden rounded-plate bg-paper-sunk">
                                 <Image
                                   className="h-full w-full object-cover"
                                   width={64}
@@ -239,11 +274,11 @@ export default function CartModal({
                               </div>
 
                               <div className="flex flex-1 flex-col">
-                                <span className="font-lora text-base font-bold leading-tight text-white">
+                                <span className="line-clamp-2 text-body font-medium text-paper">
                                   {item.merchandise.product.title}
                                 </span>
                                 {size && (
-                                  <span className="mt-1 font-quicksand text-xs text-gray-300">
+                                  <span className="mt-1 text-body-sm text-paper-muted">
                                     Size: {size}
                                   </span>
                                 )}
@@ -251,18 +286,18 @@ export default function CartModal({
                             </Link>
                             <div className="flex h-16 flex-col justify-between">
                               <Price
-                                className="flex justify-end space-y-2 text-right text-sm font-medium text-white"
+                                className="num text-right text-body font-medium text-paper"
                                 amount={lineTotal(item).toFixed(2)}
                                 currencyCode={CURRENCY_CODE}
                               />
-                              <div className="ml-auto flex h-9 flex-row items-center rounded-[8px] bg-gray-800 border border-gray-600">
+                              <div className="ml-auto flex h-9 flex-row items-center overflow-hidden rounded-control border border-ink-600 bg-ink-800">
                                 <EditItemQuantityButton
                                   item={item}
                                   type="minus"
                                   onOptimisticQuantity={applyOptimisticQuantity}
                                   onResult={handleActionResult}
                                 />
-                                <p className="w-6 border-x-2 border-gray-600 text-center font-lora font-bold leading-[1] text-white">
+                                <p className="num w-8 border-x border-ink-600 text-center text-body leading-none text-paper">
                                   <span className="w-full">{item.quantity}</span>
                                 </p>
                                 <EditItemQuantityButton
@@ -278,57 +313,58 @@ export default function CartModal({
                       );
                     })}
                   </ul>
-                  <div className="py-4 font-lora text-sm font-bold text-white">
-                    <div className="mb-3 flex items-center justify-between border-b border-gray-700 pb-1">
+                  <div className="py-4 text-body-sm text-paper-muted">
+                    <div className="mb-3 flex items-center justify-between border-b border-ink-700 pb-2">
                       <p>Subtotal</p>
                       <Price
-                        className="text-right text-base text-white"
+                        className="num text-right text-body text-paper"
                         amount={costBreakdown.subtotal.toFixed(2)}
                         currencyCode={CURRENCY_CODE}
                       />
                     </div>
-                    <div className="mb-3 flex items-center justify-between border-b border-gray-700 pb-1 pt-1">
+                    <div className="mb-3 flex items-center justify-between border-b border-ink-700 pb-2">
                       <p>{GST_LABEL}</p>
                       <Price
-                        className="text-right text-base text-white"
+                        className="num text-right text-body text-paper"
                         amount={costBreakdown.gst.toFixed(2)}
                         currencyCode={CURRENCY_CODE}
                       />
                     </div>
-                    <div className="mb-3 flex items-center justify-between border-b border-gray-700 pb-1 pt-1">
+                    <div className="mb-4 flex items-center justify-between border-b border-ink-700 pb-2">
                       <p>Shipping</p>
                       {costBreakdown.shipping > 0 ? (
                         <Price
-                          className="text-right text-base text-white"
+                          className="num text-right text-body text-paper"
                           amount={costBreakdown.shipping.toFixed(2)}
                           currencyCode={CURRENCY_CODE}
                         />
                       ) : (
-                        <p className="text-right text-white">Free</p>
+                        <p className="text-right text-body text-paper">Free</p>
                       )}
                     </div>
-                    <div className="mb-3 flex items-center justify-between border-b border-gray-700 pb-1 pt-1">
-                      <p>Total</p>
+
+                    {/* The woven rule is the totals separator, and the Total
+                        itself is the one line in zari-300 (11.44:1 on ink). */}
+                    <div className="rule-zari" aria-hidden="true" />
+                    <div className="mt-4 flex items-baseline justify-between">
+                      <p className="eyebrow text-paper-muted">Total</p>
                       <Price
-                        className="text-right text-base text-white"
+                        className="num text-right text-price-lg text-zari-300"
                         amount={costBreakdown.total.toFixed(2)}
                         currencyCode={CURRENCY_CODE}
                       />
                     </div>
                   </div>
 
-                  <Link
-                    href="/checkout"
-                    onClick={closeCart}
-                    className="btn-dark text-center block bg-[#daa520] hover:bg-[#b8860b] text-black font-bold py-3 px-6 rounded-lg transition-colors duration-200"
-                  >
+                  {/* The drawer's single filled gold element. */}
+                  <Link href="/checkout" onClick={closeCart} className="btn-cart">
                     Proceed to Checkout
                   </Link>
 
                   <Link
                     href="/orders"
                     onClick={closeCart}
-                    className="mt-3 text-center text-sm text-gray-300 hover:text-[#daa520] transition-colors duration-200 underline"
+                    className="thread-link-ink mt-4 self-center text-body-sm text-paper-muted hover:text-zari-500"
                   >
                     View My Orders
                   </Link>

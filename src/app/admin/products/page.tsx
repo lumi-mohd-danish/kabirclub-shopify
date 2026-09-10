@@ -12,6 +12,20 @@ const SEARCH_DEBOUNCE_MS = 300;
 
 const CATEGORIES = ['Topwear', 'Bottomwear', 'Accessories', 'Footwear'];
 
+// -- Admin control vocabulary -------------------------------------------------
+// The one filled gold element on this screen is "Add New Product". Everything
+// else is a hairline ghost on ink. `madder` cannot be used as TEXT on ink
+// (2.53:1 on ink-900), so destructive controls stay neutral at rest and fill
+// madder on hover/focus, where paper on madder is 6.61:1.
+const BTN_GOLD = 'btn px-4 py-3 text-body-sm';
+const BTN_GHOST =
+  'inline-flex items-center justify-center gap-2 rounded-control border border-ink-faint px-4 py-3 text-body-sm font-medium leading-none text-paper transition-colors duration-fast ease-cloth hover:bg-ink-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50';
+const BTN_GHOST_SM =
+  'inline-flex items-center justify-center rounded-control border border-ink-faint px-3 py-1.5 text-caption font-medium text-paper transition-colors duration-fast ease-cloth hover:bg-ink-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50';
+const CHIP_ACTION =
+  'rounded-control border border-ink-faint px-2 py-1 text-caption font-medium text-paper transition-colors duration-fast ease-cloth active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50';
+const TH = 'eyebrow px-4 py-3 text-left text-paper-muted';
+
 const priceFormatter = new Intl.NumberFormat('en-IN', {
   style: 'currency',
   currency: 'INR'
@@ -162,15 +176,14 @@ export default function AdminProductsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">Products</h1>
-          <p className="text-gray-400">Manage your product catalog</p>
+          <p className="eyebrow text-zari-500">Catalogue</p>
+          <h1 className="mt-2 font-display text-h2 text-paper">Products</h1>
+          <div className="rule-zari mt-3 w-12" />
+          <p className="mt-3 text-body-sm text-paper-muted">Manage your product catalog</p>
         </div>
-        <Link
-          href="/admin/products/new"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
+        <Link href="/admin/products/new" className={BTN_GOLD}>
           Add New Product
         </Link>
       </div>
@@ -179,8 +192,8 @@ export default function AdminProductsPage() {
         <div
           role="status"
           aria-live="polite"
-          className={`p-4 rounded-lg ${
-            message.type === 'success' ? 'bg-green-900 text-green-200' : 'bg-red-900 text-red-200'
+          className={`px-4 py-3 text-body-sm ${
+            message.type === 'success' ? 'bg-neem text-paper' : 'bg-madder text-paper'
           }`}
         >
           {message.text}
@@ -188,8 +201,8 @@ export default function AdminProductsPage() {
       )}
 
       {/* Filters */}
-      <div className="bg-gray-900 rounded-lg p-6">
-        <div className="flex flex-col md:flex-row gap-4">
+      <div className="border border-ink-700 bg-ink-800 p-4">
+        <div className="flex flex-col gap-3 md:flex-row">
           <div className="flex-1">
             <input
               type="search"
@@ -197,7 +210,7 @@ export default function AdminProductsPage() {
               placeholder="Search products..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+              className="field-ink py-2"
             />
           </div>
           <div>
@@ -205,7 +218,7 @@ export default function AdminProductsPage() {
               aria-label="Filter by category"
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="p-3 bg-gray-800 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+              className="field-ink py-2 md:w-56"
             >
               <option value="">All Categories</option>
               {CATEGORIES.map(category => (
@@ -214,21 +227,21 @@ export default function AdminProductsPage() {
             </select>
           </div>
         </div>
-        <p className="text-gray-400 text-xs mt-4">
+        <p className="mt-3 text-caption text-paper-muted">
           This list includes disabled products so they can be edited or switched back on.
           {disabledCount > 0 && ` ${disabledCount} on this page ${disabledCount === 1 ? 'is' : 'are'} hidden from the storefront.`}
         </p>
       </div>
 
       {/* Products Table */}
-      <div className="bg-gray-900 rounded-lg overflow-hidden">
+      <div className="border border-ink-700 bg-ink-800">
         {isLoading && products.length === 0 ? (
           <div className="p-8 text-center">
-            <div className="text-white">Loading products...</div>
+            <div className="text-body text-paper-muted">Loading products...</div>
           </div>
         ) : products.length === 0 ? (
           <div className="p-8 text-center">
-            <div className="text-gray-400">
+            <div className="text-body text-paper-muted">
               {hasFilters ? 'No products match these filters' : 'No products found'}
             </div>
             {hasFilters ? (
@@ -238,61 +251,60 @@ export default function AdminProductsPage() {
                   setSearchQuery('');
                   setSelectedCategory('');
                 }}
-                className="inline-block mt-4 px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
+                className={`mt-4 ${BTN_GHOST}`}
               >
                 Clear Filters
               </button>
             ) : (
-              <Link
-                href="/admin/products/new"
-                className="inline-block mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
+              <Link href="/admin/products/new" className={`mt-4 ${BTN_GHOST}`}>
                 Add Your First Product
               </Link>
             )}
           </div>
         ) : (
-          <div className={`overflow-x-auto transition-opacity ${isLoading ? 'opacity-60' : ''}`}>
+          <div className={`overflow-x-auto transition-opacity duration-fast ease-cloth ${isLoading ? 'opacity-60' : ''}`}>
             <table className="w-full">
-              <thead className="bg-gray-800">
+              <thead className="border-b border-ink-700 bg-ink-900">
                 <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th scope="col" className={TH}>
                     Product
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th scope="col" className={TH}>
                     Category
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th scope="col" className={TH}>
                     Price
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th scope="col" className={TH}>
                     Status
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th scope="col" className={TH}>
                     Created
                   </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                  <th scope="col" className={TH}>
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-700">
+              <tbody className="divide-y divide-ink-700">
                 {products.map((product) => {
                   const isPending = pendingId === product.id;
 
                   return (
                     <tr
                       key={product.id}
-                      className={`hover:bg-gray-800 ${product.is_active ? '' : 'bg-gray-800/40'}`}
+                      className={`transition-colors duration-fast ease-cloth hover:bg-ink-700 ${
+                        product.is_active ? '' : 'bg-ink-900'
+                      }`}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
+                      <td className="whitespace-nowrap px-4 py-3">
+                        <div className="flex items-center gap-3">
                           {product.images?.[0] && (
                             // eslint-disable-next-line @next/next/no-img-element
                             <img
                               src={product.images[0]}
                               alt={product.title}
-                              className={`h-10 w-10 rounded-lg object-cover mr-4 ${
+                              className={`h-10 w-10 flex-shrink-0 bg-paper-sunk object-cover ${
                                 product.is_active ? '' : 'opacity-50'
                               }`}
                               onError={(e) => {
@@ -301,34 +313,34 @@ export default function AdminProductsPage() {
                             />
                           )}
                           <div>
-                            <div className={`text-sm font-medium ${product.is_active ? 'text-white' : 'text-gray-400'}`}>
+                            <div className={`text-body-sm font-medium ${product.is_active ? 'text-paper' : 'text-paper-muted'}`}>
                               {product.title}
                             </div>
-                            <div className="text-sm text-gray-400">
+                            <div className="text-caption text-paper-muted">
                               {product.handle}
                             </div>
                             {!product.is_active && (
-                              <div className="text-xs text-red-300 mt-1">
+                              <div className="mt-1 text-caption text-paper-muted">
                                 Hidden from the storefront
                               </div>
                             )}
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 py-1 text-xs font-medium bg-gray-700 text-gray-300 rounded-full">
+                      <td className="whitespace-nowrap px-4 py-3">
+                        <span className="inline-block rounded-control border border-ink-700 bg-ink-900 px-2 py-0.5 text-caption text-paper-muted">
                           {product.category}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+                      <td className="num whitespace-nowrap px-4 py-3 text-body-sm text-paper">
                         {formatPrice(product.price)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center space-x-2">
-                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                      <td className="whitespace-nowrap px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className={`eyebrow inline-block rounded-control px-2 py-1 ${
                             product.is_active
-                              ? 'bg-green-900 text-green-200'
-                              : 'bg-red-900 text-red-200'
+                              ? 'bg-neem text-paper'
+                              : 'bg-madder text-paper'
                           }`}>
                             {product.is_active ? 'Active' : 'Disabled'}
                           </span>
@@ -336,10 +348,10 @@ export default function AdminProductsPage() {
                             type="button"
                             onClick={() => handleToggleStatus(product.id, product.is_active, product.title)}
                             disabled={isPending}
-                            className={`px-2 py-1 text-xs rounded disabled:opacity-50 disabled:cursor-not-allowed ${
+                            className={`${CHIP_ACTION} ${
                               product.is_active
-                                ? 'bg-red-600 text-white hover:bg-red-700'
-                                : 'bg-green-600 text-white hover:bg-green-700'
+                                ? 'hover:border-madder hover:bg-madder'
+                                : 'hover:border-neem hover:bg-neem'
                             }`}
                             title={product.is_active ? 'Disable product' : 'Enable product'}
                           >
@@ -347,14 +359,14 @@ export default function AdminProductsPage() {
                           </button>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                      <td className="num whitespace-nowrap px-4 py-3 text-caption text-paper-muted">
                         {new Date(product.created_at).toLocaleDateString('en-IN')}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex space-x-2">
+                      <td className="whitespace-nowrap px-4 py-3 text-body-sm">
+                        <div className="flex items-center gap-3">
                           <Link
                             href={`/admin/products/${product.id}/edit`}
-                            className="text-blue-400 hover:text-blue-300"
+                            className="thread-link-ink text-zari-500"
                           >
                             Edit
                           </Link>
@@ -362,7 +374,7 @@ export default function AdminProductsPage() {
                             type="button"
                             onClick={() => handleDeleteProduct(product.id, product.title)}
                             disabled={isPending}
-                            className="text-red-400 hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className={`${CHIP_ACTION} hover:border-madder hover:bg-madder`}
                           >
                             Delete
                           </button>
@@ -371,13 +383,13 @@ export default function AdminProductsPage() {
                               href={`/product/${product.handle}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-gray-400 hover:text-gray-300"
+                              className="thread-link-ink text-paper-muted hover:text-paper"
                             >
                               View
                             </Link>
                           ) : (
                             <span
-                              className="text-gray-600 cursor-not-allowed"
+                              className="cursor-not-allowed text-ink-faint"
                               title="Enable this product to open it on the storefront"
                             >
                               View
@@ -394,8 +406,8 @@ export default function AdminProductsPage() {
         )}
 
         {total > 0 && (
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-t border-gray-700 px-6 py-4">
-            <p className="text-sm text-gray-400">
+          <div className="flex flex-col gap-3 border-t border-ink-700 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="num text-caption text-paper-muted">
               Showing {firstRowNumber}–{lastRowNumber} of {total} product{total === 1 ? '' : 's'}
             </p>
             {pageCount > 1 && (
@@ -404,18 +416,18 @@ export default function AdminProductsPage() {
                   type="button"
                   onClick={() => setPage(current => Math.max(0, current - 1))}
                   disabled={page === 0 || isLoading}
-                  className="px-3 py-1 text-sm bg-gray-700 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={BTN_GHOST_SM}
                 >
                   Previous
                 </button>
-                <span className="text-sm text-gray-400">
+                <span className="num text-caption text-paper-muted">
                   Page {page + 1} of {pageCount}
                 </span>
                 <button
                   type="button"
                   onClick={() => setPage(current => Math.min(pageCount - 1, current + 1))}
                   disabled={page >= pageCount - 1 || isLoading}
-                  className="px-3 py-1 text-sm bg-gray-700 text-white rounded-lg hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className={BTN_GHOST_SM}
                 >
                   Next
                 </button>
