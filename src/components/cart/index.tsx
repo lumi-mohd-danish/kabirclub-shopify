@@ -74,13 +74,11 @@ export default function Cart() {
   }, [signedIn, refreshCart, clearCartState]);
 
   if (isLoading) {
-    return (
-      <div className="h-6 w-6 animate-pulse rounded bg-ink-800" aria-hidden="true"></div>
-    );
+    return <div className="h-6 w-6 animate-pulse rounded bg-ink-800" aria-hidden="true"></div>;
   }
 
   return (
-    <div className="relative group">
+    <div className="group relative">
       <CartModal cart={cart ?? undefined} />
       {/*
         Tooltip. The header is an ink band, so the tooltip inverts to paper —

@@ -67,5 +67,3 @@ export default function FilterList({ list }: { list: ListItem[] }) {
     </div>
   );
 }
-
-

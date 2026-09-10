@@ -1,7 +1,6 @@
 import clsx from 'clsx';
 import { Suspense } from 'react';
 
-
 /* Skeleton bars on paper: the two hairline tones, strong for the headings and
    plain for the rows. The `dark:` pair is gone - this system paints its own
    grounds rather than following the OS. */
@@ -26,7 +25,6 @@ export default function Collections() {
           <div className={clsx(skeleton, items)} />
         </div>
       }
-    >
-    </Suspense>
+    ></Suspense>
   );
 }

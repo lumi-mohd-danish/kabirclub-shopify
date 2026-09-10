@@ -31,7 +31,7 @@ function lineSize(line: CartLineWithSize): string | null {
   }
 
   const option = line.merchandise?.selectedOptions?.find(
-    entry => entry.name.toLowerCase() === 'size'
+    (entry) => entry.name.toLowerCase() === 'size'
   );
 
   return option && option.value.trim() ? option.value.trim() : null;
@@ -67,8 +67,8 @@ export default function CartModal({
     // previous one are discarded — including guesses that turned out wrong.
     // Returning the same value when there is nothing to clear avoids an extra
     // render on every cart refresh.
-    setPendingQuantities(current => (Object.keys(current).length === 0 ? current : {}));
-    setRemovedLineIds(current => (current.length === 0 ? current : []));
+    setPendingQuantities((current) => (Object.keys(current).length === 0 ? current : {}));
+    setRemovedLineIds((current) => (current.length === 0 ? current : []));
   }, [cart]);
 
   const closeCart = useCallback(() => {
@@ -80,32 +80,29 @@ export default function CartModal({
     const sourceLines = cart?.lines ?? [];
 
     return sourceLines
-      .filter(line => !removedLineIds.includes(line.id))
-      .map(line => {
+      .filter((line) => !removedLineIds.includes(line.id))
+      .map((line) => {
         const pending = pendingQuantities[line.id];
         return pending === undefined || pending === line.quantity
           ? line
           : { ...line, quantity: pending };
       })
-      .filter(line => line.quantity > 0);
+      .filter((line) => line.quantity > 0);
   }, [cart, pendingQuantities, removedLineIds]);
 
   // Same helper the checkout summary and the persisted order use, so the three
   // can never quote the shopper three different numbers.
   const costBreakdown = useMemo(() => computeCartCost(lines), [lines]);
-  const totalQuantity = useMemo(
-    () => lines.reduce((sum, line) => sum + line.quantity, 0),
-    [lines]
-  );
+  const totalQuantity = useMemo(() => lines.reduce((sum, line) => sum + line.quantity, 0), [lines]);
 
   const applyOptimisticQuantity = useCallback((lineId: string, quantity: number) => {
     setActionError(null);
-    setPendingQuantities(current => ({ ...current, [lineId]: quantity }));
+    setPendingQuantities((current) => ({ ...current, [lineId]: quantity }));
   }, []);
 
   const applyOptimisticRemoval = useCallback((lineId: string) => {
     setActionError(null);
-    setRemovedLineIds(current => (current.includes(lineId) ? current : [...current, lineId]));
+    setRemovedLineIds((current) => (current.includes(lineId) ? current : [...current, lineId]));
   }, []);
 
   const handleActionResult = useCallback((result: { success: boolean; message: string }) => {
@@ -152,7 +149,12 @@ export default function CartModal({
             viewBox="0 0 24 24"
             aria-hidden="true"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6M7 13l-1.5 6m0 0h9m-9 0h9" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6M7 13l-1.5 6m0 0h9m-9 0h9"
+            />
           </svg>
           {totalQuantity > 0 && (
             /* A gold FILL, so the figure on it is ink (8.16:1), not white. */
@@ -215,7 +217,12 @@ export default function CartModal({
                   </Dialog.Title>
                 </div>
 
-                <button ref={closeButtonRef} type="button" aria-label="Close cart" onClick={closeCart}>
+                <button
+                  ref={closeButtonRef}
+                  type="button"
+                  aria-label="Close cart"
+                  onClick={closeCart}
+                >
                   <CloseCart />
                 </button>
               </div>
@@ -244,14 +251,14 @@ export default function CartModal({
               ) : (
                 <div className="flex h-full flex-col justify-between overflow-hidden p-1">
                   <ul className="flex-grow overflow-auto py-4">
-                    {lines.map(item => {
+                    {lines.map((item) => {
                       const size = lineSize(item);
                       const merchandiseUrl = `/product/${item.merchandise.product.handle}`;
 
                       return (
                         <li key={item.id} className="flex w-full flex-col border-b border-ink-700">
                           <div className="relative flex w-full flex-row justify-between px-1 py-4">
-                            <div className="absolute z-40 -mt-2 ml-[55px]">
+                            <div className="absolute z-40 -mt-2 ml-14">
                               <DeleteItemButton
                                 item={item}
                                 onOptimisticRemove={applyOptimisticRemoval}
@@ -269,7 +276,9 @@ export default function CartModal({
                                   width={64}
                                   height={64}
                                   alt={item.merchandise.product.title}
-                                  src={item.merchandise.product.images[0] || '/images/placeholder.png'}
+                                  src={
+                                    item.merchandise.product.images[0] || '/images/placeholder.png'
+                                  }
                                 />
                               </div>
 

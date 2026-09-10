@@ -73,7 +73,7 @@ export default function ProductCard({ product, delay = 0, duration }: ProductCar
           `paper-sunk` to `paper-raised` and `shadow-card` fades in. The
           photograph itself never scales.
         */}
-        <div className="relative aspect-[3/4] overflow-hidden rounded-plate bg-paper-sunk transition-colors duration-fast ease-cloth group-hover:bg-paper-raised group-hover:shadow-card group-focus-within:bg-paper-raised group-focus-within:shadow-card">
+        <div className="relative aspect-[3/4] overflow-hidden rounded-plate bg-paper-sunk transition-colors duration-fast ease-cloth group-focus-within:bg-paper-raised group-focus-within:shadow-card group-hover:bg-paper-raised group-hover:shadow-card">
           <Image
             src={primaryImage}
             alt={product.title}
@@ -90,22 +90,20 @@ export default function ProductCard({ product, delay = 0, duration }: ProductCar
               aria-hidden="true"
               fill
               sizes={PRODUCT_CARD_SIZES}
-              className="object-cover object-center opacity-0 transition-opacity duration-fast ease-cloth group-hover:opacity-100 group-focus-within:opacity-100"
+              className="object-cover object-center opacity-0 transition-opacity duration-fast ease-cloth group-focus-within:opacity-100 group-hover:opacity-100"
             />
           ) : null}
         </div>
 
         <div className="pt-4">
-          {product.category ? (
-            <p className="eyebrow text-ink-muted">{product.category}</p>
-          ) : null}
+          {product.category ? <p className="eyebrow text-ink-muted">{product.category}</p> : null}
 
           {/*
             The zari thread draws left-to-right under the title on card hover
             AND card focus. `.thread-link` only reacts to its own :hover, so
             the plate builds the same 1px bar with `group-*:after:` variants.
           */}
-          <h3 className="relative mt-2 inline-block max-w-full text-body font-medium text-ink after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-zari-700 after:transition-transform after:duration-fast after:ease-cloth after:content-[''] group-hover:after:scale-x-100 group-focus-within:after:scale-x-100">
+          <h3 className="relative mt-2 inline-block max-w-full text-body font-medium text-ink after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-zari-700 after:transition-transform after:duration-fast after:ease-cloth after:content-[''] group-focus-within:after:scale-x-100 group-hover:after:scale-x-100">
             <span className="line-clamp-2">{product.title}</span>
           </h3>
 
@@ -121,7 +119,7 @@ export default function ProductCard({ product, delay = 0, duration }: ProductCar
             opacity changes, so revealing it never shifts the grid.
           */}
           {sizes.length > 0 ? (
-            <p className="mt-2 hidden text-caption text-ink-muted opacity-0 transition-opacity duration-fast ease-cloth group-hover:opacity-100 group-focus-within:opacity-100 md:block">
+            <p className="mt-2 hidden text-caption text-ink-muted opacity-0 transition-opacity duration-fast ease-cloth group-focus-within:opacity-100 group-hover:opacity-100 md:block">
               {sizes.join(' · ')}
             </p>
           ) : null}

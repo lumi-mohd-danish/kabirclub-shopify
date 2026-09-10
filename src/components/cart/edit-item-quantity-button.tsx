@@ -9,7 +9,6 @@ import { updateItemQuantity } from './actions';
 
 /** Mirrors the ceiling the server action enforces, so the UI stops before it does. */
 
-
 export function EditItemQuantityButton({
   item,
   type,

@@ -40,7 +40,12 @@ function resolveImageSrc(images: Product['images']): string {
 
   const trimmed = first.trim();
 
-  if (!trimmed || trimmed === 'undefined' || trimmed === 'null' || trimmed.includes('example.com')) {
+  if (
+    !trimmed ||
+    trimmed === 'undefined' ||
+    trimmed === 'null' ||
+    trimmed.includes('example.com')
+  ) {
     return PLACEHOLDER_IMAGE;
   }
 
@@ -72,7 +77,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     <div className="group w-full">
       <Link href={`/product/${safeProduct.handle}`} className="block">
         {/* The mat lifts on hover and on focus alike; the photo never scales. */}
-        <div className="relative aspect-[3/4] overflow-hidden rounded-plate bg-paper-sunk transition-colors duration-fast ease-cloth group-hover:bg-paper-raised group-hover:shadow-card group-focus-within:bg-paper-raised group-focus-within:shadow-card">
+        <div className="relative aspect-[3/4] overflow-hidden rounded-plate bg-paper-sunk transition-colors duration-fast ease-cloth group-focus-within:bg-paper-raised group-focus-within:shadow-card group-hover:bg-paper-raised group-hover:shadow-card">
           <Image
             src={imageSrc}
             alt={safeProduct.title}
@@ -90,7 +95,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           <p className="eyebrow text-ink-muted">{safeProduct.category}</p>
 
           {/* The zari thread draws under the title on card hover and focus. */}
-          <h3 className="relative mt-2 inline-block max-w-full text-body font-medium text-ink after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-zari-700 after:transition-transform after:duration-fast after:ease-cloth after:content-[''] group-hover:after:scale-x-100 group-focus-within:after:scale-x-100">
+          <h3 className="relative mt-2 inline-block max-w-full text-body font-medium text-ink after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-zari-700 after:transition-transform after:duration-fast after:ease-cloth after:content-[''] group-focus-within:after:scale-x-100 group-hover:after:scale-x-100">
             <span className="line-clamp-2">{safeProduct.title}</span>
           </h3>
 

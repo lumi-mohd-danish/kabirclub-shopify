@@ -78,5 +78,11 @@ export function AddToCart({
   );
   const selectedVariantId = variant?.id || defaultVariantId;
 
-  return <ContactUsButton availableForSale={availableForSale} selectedVariantId={selectedVariantId} productHandle={productHandle} />;
+  return (
+    <ContactUsButton
+      availableForSale={availableForSale}
+      selectedVariantId={selectedVariantId}
+      productHandle={productHandle}
+    />
+  );
 }

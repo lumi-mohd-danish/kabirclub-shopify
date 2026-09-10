@@ -222,7 +222,11 @@ export function GridPagination({
 
         {pages.map((entry, index) =>
           entry === 'gap' ? (
-            <li key={`gap-${index}`} aria-hidden="true" className="px-1 text-body-sm text-ink-faint">
+            <li
+              key={`gap-${index}`}
+              aria-hidden="true"
+              className="px-1 text-body-sm text-ink-faint"
+            >
               &hellip;
             </li>
           ) : (

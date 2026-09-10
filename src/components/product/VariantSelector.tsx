@@ -27,10 +27,11 @@ export default function VariantSelector({ product }: VariantSelectorProps) {
           </div>
         </div>
       </div>
-      
+
       <div className="border-t border-line pt-4">
         <p className="text-body-sm text-ink-muted">
-          This product is available in standard sizing. Please refer to our size guide for accurate measurements.
+          This product is available in standard sizing. Please refer to our size guide for accurate
+          measurements.
         </p>
       </div>
     </div>
