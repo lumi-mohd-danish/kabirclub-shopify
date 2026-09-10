@@ -41,7 +41,7 @@ const SubMenu = ({
               title={imageItem.title}
               className={clsx(
                 'transition-all hover:[&_img]:scale-110',
-                i === 0 ? 'fade-up' : 'fade-up-delay'
+                i === 0 ? 'animate-fadeUp' : 'animate-fadeUpDelay'
               )}
               style={{ opacity: 0 }}
             >

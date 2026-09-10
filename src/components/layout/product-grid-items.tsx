@@ -1,66 +1,46 @@
-'use client';
-
+import Grid from '@/components/grid';
+import ProductCard from '@/components/layout/ProductCard';
 import { Product } from '@/lib/supabase/types';
-import { motion } from 'framer-motion';
-import Image from 'next/image';
-import Link from 'next/link';
-import Price from '../common/price';
+
+/**
+ * The `<li>` children of a `<Grid>`.
+ *
+ * This component deliberately renders NO grid of its own: the parent `<Grid>`
+ * owns the columns, and the cards come from the shared `ProductCard` rather
+ * than a private copy of it.
+ *
+ * It is a server component — the only client boundary is `ProductCard` itself,
+ * so a 24-card page ships one card bundle instead of also shipping this mapper.
+ */
+
+/**
+ * Entrance animations stagger, but only for the first few cards. An uncapped
+ * `index * step` meant the last card of a long page faded in tens of seconds
+ * after load, which reads as a broken page.
+ */
+const MAX_STAGGER_STEPS = 7;
+const STAGGER_STEP_SECONDS = 0.06;
 
 interface ProductGridItemsProps {
   products: Product[];
-  title?: string;
+  /** Extra delay in seconds applied before the stagger, for below-the-fold sections. */
   delay?: number;
+  /** Animation duration in seconds, forwarded to each card. */
   duration?: number;
 }
 
-export default function ProductGridItems({ products, title, delay = 0, duration }: ProductGridItemsProps) {
+export default function ProductGridItems({ products, delay = 0, duration }: ProductGridItemsProps) {
   return (
-    <div className="space-y-8">
-      {title && (
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-white">{title}</h2>
-        </div>
-      )}
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {products.map((product, index) => (
-          <motion.div
-            key={product.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: duration || 0.5, delay: delay + (index * 0.1) }}
-            className="group relative overflow-hidden rounded-lg bg-white shadow-lg transition-all duration-300 hover:shadow-xl"
-          >
-            <Link href={`/product/${product.handle}`} className="block">
-              <div className="relative aspect-square overflow-hidden">
-                <Image
-                  src={product.images[0] || '/images/placeholder.png'}
-                  alt={product.title}
-                  fill
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                />
-              </div>
-              
-              <div className="p-4">
-                <h3 className="mb-2 text-lg font-semibold text-gray-800 line-clamp-1">
-                  {product.title}
-                </h3>
-                <div className="mb-3 flex items-center justify-between">
-                  <Price
-                    amount={product.price.toString()}
-                    currencyCode="INR"
-                    className="text-xl font-bold text-[#daa520]"
-                  />
-                  <span className="text-sm text-gray-500 capitalize">
-                    {product.category}
-                  </span>
-                </div>
-              </div>
-            </Link>
-          </motion.div>
-        ))}
-      </div>
-    </div>
+    <>
+      {products.map((product, index) => (
+        <Grid.Item key={product.id}>
+          <ProductCard
+            product={product}
+            delay={delay + Math.min(index, MAX_STAGGER_STEPS) * STAGGER_STEP_SECONDS}
+            duration={duration}
+          />
+        </Grid.Item>
+      ))}
+    </>
   );
 }

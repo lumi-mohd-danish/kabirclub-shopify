@@ -64,9 +64,12 @@ CREATE INDEX idx_cart_items_user_id ON cart_items(user_id);
 CREATE INDEX idx_users_email ON users(email);
 
 -- Insert sample admin user
-INSERT INTO users (email, full_name, role) VALUES
-  ('admin@kabirclub.com', 'Admin User', 'admin'),
-  ('mohd.danish@kabirclub.com', 'Mohammad Danish', 'super_admin');
+-- Admin accounts are NOT seeded. These rows had random UUIDs matching no
+-- auth.users row, and existing only as an email address they became an
+-- escalation target: signing up with one of them used to inherit its role.
+-- Grant admin explicitly instead, after the account exists:
+--   UPDATE public.users SET role = 'super_admin' WHERE lower(email) = lower('<owner-email>');
+
 
 -- Insert sample data
 INSERT INTO collections (title, description, handle) VALUES

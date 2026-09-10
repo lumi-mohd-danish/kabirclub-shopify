@@ -12,7 +12,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const router = useRouter();
-  const { login } = useAuth();
+  const { signIn } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,38 +34,21 @@ export default function LoginPage() {
         return;
       }
 
-      // Password validation (minimum 6 characters)
-      if (password.length < 6) {
-        setError('Password must be at least 6 characters long');
+      const result = await signIn(email, password);
+
+      if (!result.success) {
+        setError(result.error || 'Invalid email or password.');
         return;
       }
 
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      setSuccess('Signed in. Taking you back...');
 
-      // For demo purposes, accept any valid email/password combination
-      // In production, this would be an actual API call to your backend
-      if (email && password) {
-        // Extract name from email (first part before @)
-        const name = email.split('@')[0] || 'User';
-        
-        // Use the useAuth hook to login
-        login(email, name);
-        
-        // Show success message briefly
-        setSuccess('Login successful! Redirecting...');
-        
-        // Force a small delay to ensure state is updated before redirect
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Redirect to home page after a brief delay
-        setTimeout(() => {
-          router.push('/');
-        }, 1500);
-      }
-    } catch (err) {
-      setError('Login failed. Please try again.');
-      console.error('Login error:', err);
+      // Honour ?redirect= so the middleware can send an unauthenticated
+      // /admin visitor here and return them where they were going.
+      const params = new URLSearchParams(window.location.search);
+      router.replace(params.get('redirect') || '/');
+    } catch {
+      setError('Could not sign you in right now. Please try again.');
     } finally {
       setIsLoading(false);
     }

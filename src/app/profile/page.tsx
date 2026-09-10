@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '@/hooks/useAuth';
+import { getCartSessionId } from '@/components/cart/actions';
 import { getOrders } from '@/lib/supabase/api';
 import { Order } from '@/lib/supabase/types';
 import Link from 'next/link';
@@ -32,7 +33,7 @@ export default function ProfilePage() {
 
   const fetchOrders = useCallback(async () => {
     try {
-      const sessionId = getSessionId();
+      const sessionId = await getSessionId();
       if (sessionId) {
         const ordersData = await getOrders(sessionId);
         setOrders(ordersData || []);
@@ -58,14 +59,8 @@ export default function ProfilePage() {
     fetchOrders();
   }, [authLoading, isAuthenticated, user, router, fetchOrders]);
 
-  const getSessionId = () => {
-    const cookies = document.cookie.split(';');
-    const sessionCookie = cookies.find(cookie => cookie.trim().startsWith('sessionId='));
-    if (sessionCookie) {
-      return sessionCookie.split('=')[1];
-    }
-    return null;
-  };
+  // The cart session cookie is httpOnly, so `document.cookie` cannot see it.
+  const getSessionId = (): Promise<string | null> => getCartSessionId();
 
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();

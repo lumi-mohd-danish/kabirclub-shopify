@@ -29,7 +29,7 @@ export default function ProductSlider({ product }: ProductSliderProps) {
           delay: 3000,
           disableOnInteraction: false,
         }}
-        className="product-slider"
+
       >
         {images.map((image, index) => (
           <SwiperSlide key={index}>

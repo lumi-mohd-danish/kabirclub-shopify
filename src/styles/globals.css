@@ -3,30 +3,179 @@
 @tailwind components;
 @tailwind utilities;
 
-.btn {
-  @apply relative rounded-[8px] border border-transparent bg-lightPurple px-[32px] py-[16px] font-bold text-darkPurple shadow-md transition-all duration-300 after:absolute after:right-[20px] after:top-[calc(50%_+_2px)] after:font-[swiper-icons] after:text-[20px] after:text-white after:opacity-0 after:transition-all after:duration-300 after:content-['next'] after:-translate-y-1/2 hover:border-lightPurple hover:bg-purple hover:pl-[16px] hover:pr-[48px] hover:text-white hover:after:opacity-100;
+/* ---------------------------------------------------------------------------
+ * Design tokens used by the component recipes and the shared focus indicator.
+ *
+ * `--kc-ink` is the brand near-black. It is the only foreground that is
+ * readable on every surface the storefront actually paints:
+ *   #302216 on brand gold  #fdc466  ->  9.7:1  (AAA)
+ *   #302216 on brand gold  #daa520  ->  7.4:1  (AAA)
+ *   #302216 on white       #ffffff  -> 15.4:1  (AAA)
+ * White text on gold is 1.58:1 and must never be used on a filled gold button.
+ * ------------------------------------------------------------------------- */
+@layer base {
+  :root {
+    --kc-ink: #302216;
+    --kc-focus-ring: #302216;
+    --kc-focus-halo: #ffffff;
+  }
 }
 
-.btn-dark {
-  @apply relative rounded-[8px] border border-transparent bg-purple px-[32px] py-[16px] font-bold text-white shadow-md transition-all duration-300 after:absolute after:right-[20px] after:top-1/2 after:font-[swiper-icons] after:text-[18px] after:text-white after:opacity-0 after:transition-all after:duration-300 after:content-['next'] after:-translate-y-1/2 hover:border-white hover:bg-darkPurple hover:pl-[16px] hover:pr-[48px] hover:after:opacity-100;
+/* ---------------------------------------------------------------------------
+ * Component recipes.
+ *
+ * These MUST live inside `@layer components`. Tailwind hoists this block to
+ * the `@tailwind components` position, which keeps every one of these rules
+ * ahead of `@tailwind utilities` in the emitted stylesheet. That is what lets
+ * a call site write `className="btn bg-[#daa520] text-black"` and actually
+ * get gold-with-black-text instead of being silently overridden by the recipe.
+ * Declaring them after `@tailwind utilities` (as this file used to) inverts
+ * the cascade and makes every call-site utility a no-op.
+ * ------------------------------------------------------------------------- */
+@layer components {
+  /* Filled gold primary button. Gold surface, near-black foreground. */
+  .btn {
+    @apply relative rounded-[8px] border border-transparent bg-lightPurple px-[32px] py-[16px] font-bold text-[color:var(--kc-ink)] shadow-md transition-all duration-300 after:absolute after:right-[20px] after:top-[calc(50%_+_2px)] after:font-[swiper-icons] after:text-[20px] after:text-[color:var(--kc-ink)] after:opacity-0 after:transition-all after:duration-300 after:content-['next'] after:-translate-y-1/2 hover:border-lightPurple hover:bg-purple hover:pl-[16px] hover:pr-[48px] hover:after:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--kc-focus-ring)];
+  }
+
+  /* Filled gold button whose hover state flips to the light surface. */
+  .btn-dark {
+    @apply relative rounded-[8px] border border-transparent bg-purple px-[32px] py-[16px] font-bold text-[color:var(--kc-ink)] shadow-md transition-all duration-300 after:absolute after:right-[20px] after:top-1/2 after:font-[swiper-icons] after:text-[18px] after:text-[color:var(--kc-ink)] after:opacity-0 after:transition-all after:duration-300 after:content-['next'] after:-translate-y-1/2 hover:border-[color:var(--kc-ink)] hover:bg-darkPurple hover:pl-[16px] hover:pr-[48px] hover:after:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--kc-focus-ring)];
+  }
+
+  /* Light-surface button. Needs a real border or it is invisible on a white
+     page (the `darkPurple` token resolves to #ffffff in tailwind.config.js). */
+  .btn-very-dark {
+    @apply relative rounded-[8px] border border-[color:var(--kc-ink)] bg-darkPurple px-[32px] py-[16px] font-bold text-[color:var(--kc-ink)] shadow-md transition-all duration-300 after:absolute after:right-[20px] after:top-1/2 after:font-[swiper-icons] after:text-[18px] after:text-[color:var(--kc-ink)] after:opacity-0 after:transition-all after:duration-300 after:content-['next'] after:-translate-y-1/2 hover:border-[color:var(--kc-ink)] hover:bg-purple hover:pl-[16px] hover:pr-[48px] hover:after:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--kc-focus-ring)];
+  }
+
+  .btn-cart {
+    @apply relative w-full rounded-[8px] border border-transparent bg-purple px-[32px] py-[16px] font-bold text-[color:var(--kc-ink)] shadow-md transition-all duration-300 after:absolute after:right-[20px] after:top-1/2 after:text-[32px] after:text-[color:var(--kc-ink)] after:opacity-0 after:transition-all after:duration-300 after:content-['+'] after:-translate-y-1/2 hover:border-[color:var(--kc-ink)] hover:bg-darkPurple hover:pl-[16px] hover:pr-[48px] hover:after:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--kc-focus-ring)];
+  }
+
+  /* Rendered with `opacity-60` at the call site, so the foreground has to
+     start from the high-contrast ink to stay legible once faded. */
+  .btn-cart-disabled {
+    @apply relative w-full rounded-[8px] border border-transparent bg-purple px-[32px] py-[16px] font-bold text-[color:var(--kc-ink)] shadow-md;
+  }
+
+  .hover-line {
+    @apply relative transition-all duration-300 before:absolute before:bottom-0 before:left-1/2 before:h-[1px] before:w-0 before:bg-purple before:opacity-0 before:transition-all before:duration-300 before:will-change-transform before:-translate-x-1/2 hover:text-purple hover:before:w-full hover:before:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--kc-focus-ring)];
+  }
+
+  .header-link {
+    @apply relative h-full before:absolute before:bottom-0 before:left-1/2 before:hidden before:h-[4px] before:w-0 before:bg-purple before:opacity-0 before:transition-all before:duration-300 before:will-change-transform before:-translate-x-1/2 hover:text-purple hover:before:w-full hover:before:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--kc-focus-ring)] md:before:block;
+  }
 }
 
-.btn-very-dark {
-  @apply relative rounded-[8px] border border-transparent bg-darkPurple px-[32px] py-[16px] font-bold text-white shadow-md transition-all duration-300 after:absolute after:right-[20px] after:top-1/2 after:font-[swiper-icons] after:text-[18px] after:text-white after:opacity-0 after:transition-all after:duration-300 after:content-['next'] after:-translate-y-1/2 hover:border-white hover:bg-purple hover:pl-[16px] hover:pr-[48px] hover:after:opacity-100;
+/* ---------------------------------------------------------------------------
+ * Shared keyboard focus indicator.
+ *
+ * Deliberately emitted after `@tailwind utilities` and marked `!important`:
+ * the app contains 38 bare `focus:outline-none` utilities that remove the only
+ * affordance a keyboard user has, and a plain cascade rule cannot beat them.
+ * A visible focus indicator is a hard requirement (WCAG 2.4.7), so this rule
+ * is intentionally not overridable by a call-site utility.
+ *
+ * The indicator is a three-band ring so it stays visible on every surface the
+ * app paints - white pages, gold buttons and the dark `bg-gray-800/900` admin
+ * panels alike:
+ *   0-2px  white halo   (box-shadow spread)
+ *   2-4px  dark ring    (outline at outline-offset: 2px, painted above)
+ *   4-6px  white halo   (box-shadow spread)
+ * `var(--tw-shadow)` is re-declared last so an element's own `shadow-md` is
+ * preserved while it is focused.
+ * ------------------------------------------------------------------------- */
+:where(
+    a[href],
+    area[href],
+    button,
+    input,
+    select,
+    textarea,
+    summary,
+    [contenteditable='true'],
+    [role='button'],
+    [role='link'],
+    [role='tab'],
+    [role='menuitem'],
+    [role='option'],
+    [role='switch'],
+    [role='checkbox'],
+    [role='radio'],
+    [tabindex]:not([tabindex^='-'])
+  ):focus-visible {
+  outline: 2px solid var(--kc-focus-ring) !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 6px var(--kc-focus-halo), var(--tw-shadow, 0 0 #0000) !important;
 }
 
-.btn-cart {
-  @apply relative w-full rounded-[8px] border border-transparent bg-purple px-[32px] py-[16px] font-bold text-white shadow-md transition-all duration-300 after:absolute after:right-[20px] after:top-1/2 after:text-[32px] after:text-white after:opacity-0 after:transition-all after:duration-300 after:content-['+'] after:-translate-y-1/2 hover:border-white hover:bg-darkPurple hover:pl-[16px] hover:pr-[48px] hover:text-white hover:after:opacity-100;
+/* Windows High Contrast / forced-colors: let the OS pick the ring colour. */
+@media (forced-colors: active) {
+  :where(
+      a[href],
+      area[href],
+      button,
+      input,
+      select,
+      textarea,
+      summary,
+      [contenteditable='true'],
+      [role='button'],
+      [role='link'],
+      [role='tab'],
+      [role='menuitem'],
+      [role='option'],
+      [role='switch'],
+      [role='checkbox'],
+      [role='radio'],
+      [tabindex]:not([tabindex^='-'])
+    ):focus-visible {
+    outline: 3px solid Highlight !important;
+    outline-offset: 2px !important;
+    box-shadow: none !important;
+  }
 }
 
-.btn-cart-disabled {
-  @apply relative w-full rounded-[8px] border border-transparent bg-purple px-[32px] py-[16px] font-bold text-white shadow-md;
-}
+/* ---------------------------------------------------------------------------
+ * Reduced motion.
+ *
+ * The app uses fadeUp / fadeIn / fadeOut / marquee / blink keyframes plus
+ * `transition-all duration-300` on most interactive elements. Collapsing the
+ * durations (rather than setting `animation: none`) is deliberate: fadeUp and
+ * fadeOut use `forwards`, so they snap to their final frame and the content
+ * stays in its intended end state instead of being stranded mid-animation.
+ * ------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto !important;
+  }
 
-.hover-line {
-  @apply relative transition-all duration-300 before:absolute before:bottom-0 before:left-1/2 before:h-[1px] before:w-0 before:bg-purple before:opacity-0 before:transition-all before:duration-300 before:will-change-transform before:-translate-x-1/2 hover:text-purple hover:before:w-full hover:before:opacity-100;
-}
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
 
-.header-link {
-  @apply relative h-full before:absolute before:bottom-0 before:left-1/2 before:hidden before:h-[4px] before:w-0 before:bg-purple before:opacity-0 before:transition-all before:duration-300 before:will-change-transform before:-translate-x-1/2 hover:text-purple hover:before:w-full hover:before:opacity-100 md:before:block;
+  /* `blink` is declared with `both` fill, so collapsing it would freeze the
+     loading dots at 20% opacity. Drop it and show them at full strength. */
+  .animate-blink {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+
+  /* The promo ticker is an infinite decorative scroll (`animate-carousel`
+     from tailwind.config.js, and the injected `.rfm-marquee` rule that
+     react-fast-marquee ships in <Discounts />). Stop it outright rather than
+     letting the clamped iteration count flash a single frame of travel. */
+  .animate-carousel,
+  .rfm-marquee {
+    animation: none !important;
+    transform: none !important;
+  }
 }

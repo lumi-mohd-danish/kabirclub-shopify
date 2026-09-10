@@ -1,7 +1,22 @@
-// Image upload utility using ImgBB API
+// Image upload helpers.
+//
+// The upload itself happens server-side in `src/app/api/upload/route.ts`, which
+// holds the ImgBB API key in `IMGBB_API_KEY` and re-checks that the caller is an
+// admin. Nothing in this module carries a credential, so it is safe to import
+// from a 'use client' component.
 
-const IMGBB_API_KEY = '6a2c9d07c5f49f5ca92a420af7dca100';
-const IMGBB_API_URL = 'https://api.imgbb.com/1/upload';
+const UPLOAD_ENDPOINT = '/api/upload';
+
+/** ImgBB's own ceiling is 32MB; the server enforces the same limit. */
+const MAX_UPLOAD_BYTES = 32 * 1024 * 1024;
+
+const SUPPORTED_FORMATS = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/gif',
+  'image/webp'
+];
 
 export interface ImageUploadResult {
   url: string;
@@ -10,76 +25,76 @@ export interface ImageUploadResult {
   size: number;
 }
 
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
+}
+
+async function postToUploadApi(
+  body: FormData,
+  signal?: AbortSignal
+): Promise<ImageUploadResult> {
+  const response = await fetch(UPLOAD_ENDPOINT, {
+    method: 'POST',
+    body,
+    credentials: 'same-origin',
+    ...(signal ? { signal } : {})
+  });
+
+  const payload = (await response.json().catch(() => null)) as
+    | Partial<ImageUploadResult> & { error?: string }
+    | null;
+
+  if (!response.ok) {
+    throw new Error(payload?.error || `Image upload failed (HTTP ${response.status}).`);
+  }
+
+  if (!payload || typeof payload.url !== 'string' || !payload.url) {
+    throw new Error('Image upload failed: the server did not return an image URL.');
+  }
+
+  return {
+    url: payload.url,
+    ...(payload.deleteUrl ? { deleteUrl: payload.deleteUrl } : {}),
+    filename: payload.filename || 'upload',
+    size: typeof payload.size === 'number' ? payload.size : 0
+  };
+}
+
+/**
+ * Uploads a raw base64 image (no `data:` prefix required) and returns its URL,
+ * or null when the server responded without one.
+ */
 export const uploadImage = async (
-  base64Image: string, 
+  base64Image: string,
   controller: AbortController
 ): Promise<string | null> => {
-  try {
-    const formData = new FormData();
-    formData.append('image', base64Image);
+  const formData = new FormData();
+  formData.append('image', base64Image);
 
-    const response = await fetch(`${IMGBB_API_URL}?key=${IMGBB_API_KEY}`, {
-      method: 'POST',
-      body: formData,
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    if (data.success) {
-      return data.data.url;
-    } else {
-      throw new Error('Failed to upload image: API returned error');
-    }
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
-      throw error;
-    }
-    throw error;
-  }
+  const result = await postToUploadApi(formData, controller.signal);
+  return result.url || null;
 };
 
 export const uploadImageFile = async (
   file: File,
   controller?: AbortController
 ): Promise<ImageUploadResult> => {
+  const validation = validateImageFile(file);
+  if (!validation.isValid) {
+    throw new Error(validation.error || 'Invalid image file');
+  }
+
+  const formData = new FormData();
+  formData.append('file', file, file.name);
+
   try {
-    // Convert file to base64
-    const base64 = await fileToBase64(file);
-    
-    const formData = new FormData();
-    formData.append('image', base64);
-
-    const response = await fetch(`${IMGBB_API_URL}?key=${IMGBB_API_KEY}`, {
-      method: 'POST',
-      body: formData,
-      signal: controller?.signal,
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const data = await response.json();
-    if (data.success) {
-      return {
-        url: data.data.url,
-        deleteUrl: data.data.delete_url,
-        filename: data.data.title || file.name,
-        size: data.data.size
-      };
-    } else {
-      throw new Error('Failed to upload image: API returned error');
-    }
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
+    return await postToUploadApi(formData, controller?.signal);
+  } catch (error) {
+    if (isAbortError(error)) {
       throw error;
     }
-    console.error('Image upload error:', error);
-    throw new Error(`Failed to upload image: ${error.message}`);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Failed to upload image: ${message}`);
   }
 };
 
@@ -90,64 +105,33 @@ export const uploadMultipleImages = async (
   controller?: AbortController
 ): Promise<ImageUploadResult[]> => {
   const results: ImageUploadResult[] = [];
-  
+
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     if (!file) continue;
-    
-    try {
-      const result = await uploadImageFile(file, controller);
-      results.push(result);
-      if (onProgress) {
-        onProgress(i + 1, files.length);
-      }
-    } catch (error) {
-      console.error(`Failed to upload image ${i + 1}:`, error);
-      throw error;
+
+    const result = await uploadImageFile(file, controller);
+    results.push(result);
+
+    if (onProgress) {
+      onProgress(i + 1, files.length);
     }
   }
-  
-  return results;
-};
 
-// Helper function to convert File to base64
-const fileToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        // Remove data:image/...;base64, prefix
-        const base64 = reader.result.split(',')[1];
-        if (base64) {
-          resolve(base64);
-        } else {
-          reject(new Error('Failed to extract base64 data'));
-        }
-      } else {
-        reject(new Error('Failed to convert file to base64'));
-      }
-    };
-    reader.onerror = error => reject(error);
-  });
+  return results;
 };
 
 // Helper function to validate image file
 export const validateImageFile = (file: File): { isValid: boolean; error?: string } => {
-  // Check file type
   if (!file.type.startsWith('image/')) {
     return { isValid: false, error: 'File must be an image' };
   }
 
-  // Check file size (max 32MB for ImgBB)
-  const maxSize = 32 * 1024 * 1024; // 32MB
-  if (file.size > maxSize) {
+  if (file.size > MAX_UPLOAD_BYTES) {
     return { isValid: false, error: 'Image size must be less than 32MB' };
   }
 
-  // Check supported formats
-  const supportedFormats = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-  if (!supportedFormats.includes(file.type)) {
+  if (!SUPPORTED_FORMATS.includes(file.type)) {
     return { isValid: false, error: 'Supported formats: JPEG, PNG, GIF, WebP' };
   }
 
@@ -160,6 +144,12 @@ export const compressImage = (file: File, maxWidth = 1920, quality = 0.8): Promi
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    const finish = (result: File) => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(result);
+    };
 
     img.onload = () => {
       // Calculate new dimensions
@@ -174,17 +164,18 @@ export const compressImage = (file: File, maxWidth = 1920, quality = 0.8): Promi
 
       // Draw and compress
       ctx?.drawImage(img, 0, 0, width, height);
-      
+
       canvas.toBlob(
         (blob) => {
           if (blob) {
-            const compressedFile = new File([blob], file.name, {
-              type: file.type,
-              lastModified: Date.now(),
-            });
-            resolve(compressedFile);
+            finish(
+              new File([blob], file.name, {
+                type: file.type,
+                lastModified: Date.now()
+              })
+            );
           } else {
-            resolve(file); // Return original if compression fails
+            finish(file); // Return original if compression fails
           }
         },
         file.type,
@@ -192,6 +183,10 @@ export const compressImage = (file: File, maxWidth = 1920, quality = 0.8): Promi
       );
     };
 
-    img.src = URL.createObjectURL(file);
+    // If the browser cannot decode the image, fall back to the original file
+    // rather than leaving the promise pending forever.
+    img.onerror = () => finish(file);
+
+    img.src = objectUrl;
   });
 };

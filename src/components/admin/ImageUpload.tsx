@@ -203,21 +203,6 @@ export default function ImageUpload({
                   e.currentTarget.src = '/images/placeholder.png';
                 }}
               />
-              <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
-                <button
-                  onClick={() => {
-                    // Remove this image functionality would go here
-                    // You might want to add an onImageRemoved callback prop
-                    console.log('Remove image at index:', index);
-                  }}
-                  className="p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
-                  title="Remove image"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
             </div>
           ))}
         </div>

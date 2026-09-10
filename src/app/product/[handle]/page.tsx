@@ -70,7 +70,9 @@ const ProductPage = async ({ params }: { params: { handle: string } }) => {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(productJsonLd)
+          // Escape `<` so a title or description containing `</script>`
+          // cannot break out of the script element.
+          __html: JSON.stringify(productJsonLd).replace(/</g, '\\u003c')
         }}
       />
       <section className="flex w-full flex-col items-center bg-black justify-center py-[24px] md:py-[48px]">

@@ -3,11 +3,11 @@
 import ImageUpload from '@/components/admin/ImageUpload';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { updateProduct } from '@/lib/supabase/admin-api';
-import { getProducts } from '@/lib/supabase/api';
+import { getProductById } from '@/lib/supabase/api';
 import { Product } from '@/lib/supabase/types';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface EditProductPageProps {
   params: {
@@ -15,14 +15,34 @@ interface EditProductPageProps {
   };
 }
 
+const CATEGORIES = ['Topwear', 'Bottomwear', 'Accessories', 'Footwear'];
+const SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
+
+const HANDLE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+const slugify = (value: string): string =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/[\s_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+
+const errorMessage = (error: unknown, fallback: string): string =>
+  error instanceof Error && error.message ? error.message : fallback;
+
 export default function EditProductPage({ params }: EditProductPageProps) {
   const { requireAdmin } = useAdminAuth();
   const router = useRouter();
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  
+  const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -33,55 +53,80 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     images: [] as string[],
     is_active: true
   });
-  
+
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const categories = ['Topwear', 'Bottomwear', 'Accessories', 'Footwear'];
-  const sizes = ['S', 'M', 'L', 'XL', 'XXL'];
-
   useEffect(() => {
-    fetchProduct();
-  }, [params.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    let cancelled = false;
 
-  const fetchProduct = async () => {
-    try {
+    const load = async () => {
       setIsLoading(true);
-      // Get all products and find the one with matching ID
-      const data = await getProducts({ limit: 1000 });
-      const foundProduct = data.products.find(p => p.id === params.id);
-      
-      if (!foundProduct) {
-        throw new Error('Product not found');
-      }
-      
-      setProduct(foundProduct);
-      setFormData({
-        title: foundProduct.title,
-        description: foundProduct.description || '',
-        price: foundProduct.price.toString(),
-        category: foundProduct.category,
-        handle: foundProduct.handle,
-        sizes: foundProduct.sizes || [],
-        images: foundProduct.images || [],
-        is_active: foundProduct.is_active
-      });
-    } catch (error) {
-      console.error('Error fetching product:', error);
-      setMessage({
-        type: 'error',
-        text: 'Failed to fetch product'
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      setLoadError(null);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+      try {
+        // `getProductById` includes inactive products by default, so a disabled
+        // product can still be opened here and switched back on.
+        const found = await getProductById(params.id);
+
+        if (cancelled) return;
+
+        if (!found) {
+          setProduct(null);
+          setLoadError('This product no longer exists, or the link is wrong.');
+          return;
+        }
+
+        const loadedPrice = Number(found.price);
+
+        setProduct(found);
+        setFormData({
+          title: found.title ?? '',
+          description: found.description ?? '',
+          price: Number.isFinite(loadedPrice) ? String(loadedPrice) : '',
+          category: found.category ?? '',
+          handle: found.handle ?? '',
+          sizes: Array.isArray(found.sizes) ? found.sizes : [],
+          images: Array.isArray(found.images) ? found.images : [],
+          is_active: found.is_active !== false
+        });
+      } catch (error) {
+        if (cancelled) return;
+
+        setProduct(null);
+        setLoadError(errorMessage(error, 'Failed to load this product. Please try again.'));
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [params.id]);
+
+  // A pending redirect must not fire after this page has gone away.
+  useEffect(
+    () => () => {
+      if (redirectTimer.current) clearTimeout(redirectTimer.current);
+    },
+    []
+  );
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value, type } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }));
+  };
+
+  // Tidy the handle once the field is left, rather than fighting the keystrokes.
+  const handleHandleBlur = () => {
+    setFormData(prev => ({ ...prev, handle: slugify(prev.handle) }));
   };
 
   const handleImageUploaded = (url: string) => {
@@ -97,6 +142,11 @@ export default function EditProductPage({ params }: EditProductPageProps) {
   };
 
   const removeImage = (index: number) => {
+    const imageNumber = index + 1;
+    if (!window.confirm(`Remove image ${imageNumber} from this product?`)) {
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
@@ -114,54 +164,68 @@ export default function EditProductPage({ params }: EditProductPageProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    if (isSaving || isRedirecting) return;
+
     try {
       requireAdmin();
       setIsSaving(true);
       setMessage(null);
 
-      // Validation
-      if (!formData.title || !formData.price || !formData.category || !formData.handle) {
+      const title = formData.title.trim();
+      const category = formData.category.trim();
+      const handle = slugify(formData.handle);
+      const description = formData.description.trim();
+
+      if (!title || !formData.price.trim() || !category || !handle) {
         throw new Error('Please fill in all required fields');
       }
 
-      const price = parseFloat(formData.price);
-      if (isNaN(price) || price <= 0) {
+      if (!HANDLE_PATTERN.test(handle)) {
+        throw new Error('Handle must contain only lowercase letters, numbers and hyphens');
+      }
+
+      const price = Number.parseFloat(formData.price);
+      if (!Number.isFinite(price) || price <= 0) {
         throw new Error('Please enter a valid price');
       }
 
-      // Use uploaded images
-      const images = formData.images;
+      if (formData.sizes.length === 0) {
+        throw new Error('Please select at least one available size');
+      }
 
-      const updates = {
-        title: formData.title,
-        description: formData.description,
-        price: price,
-        category: formData.category,
-        handle: formData.handle,
+      // Turning a live product off hides it from every shopper — confirm first.
+      if (product?.is_active && !formData.is_active) {
+        const confirmed = window.confirm(
+          `Disable "${title}"?\n\nIt will stop appearing anywhere on the storefront.`
+        );
+        if (!confirmed) {
+          return;
+        }
+      }
+
+      // Keep the tidied handle visible so the saved value and the field agree.
+      setFormData(prev => ({ ...prev, handle }));
+
+      await updateProduct(params.id, {
+        title,
+        description,
+        price: Math.round(price * 100) / 100,
+        category,
+        handle,
         sizes: formData.sizes,
-        images: images,
+        images: formData.images,
         is_active: formData.is_active
-      };
-
-      await updateProduct(params.id, updates);
-      
-      setMessage({
-        type: 'success',
-        text: 'Product updated successfully!'
       });
 
-      // Redirect after a brief delay
-      setTimeout(() => {
+      setIsRedirecting(true);
+      setMessage({ type: 'success', text: 'Product updated successfully!' });
+
+      redirectTimer.current = setTimeout(() => {
         router.push('/admin/products');
-      }, 1500);
-
-    } catch (error: any) {
-      console.error('Error updating product:', error);
-      setMessage({
-        type: 'error',
-        text: error.message || 'Failed to update product'
-      });
+      }, 1200);
+    } catch (error) {
+      setMessage({ type: 'error', text: errorMessage(error, 'Failed to update product') });
     } finally {
       setIsSaving(false);
     }
@@ -169,7 +233,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="flex min-h-[60vh] items-center justify-center">
         <div className="text-white text-xl">Loading product...</div>
       </div>
     );
@@ -179,7 +243,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     return (
       <div className="space-y-6">
         <div className="bg-red-900 text-red-200 p-4 rounded-lg">
-          Product not found
+          {loadError ?? 'Product not found'}
         </div>
         <Link
           href="/admin/products"
@@ -190,6 +254,8 @@ export default function EditProductPage({ params }: EditProductPageProps) {
       </div>
     );
   }
+
+  const isBusy = isSaving || isRedirecting;
 
   return (
     <div className="space-y-6">
@@ -206,10 +272,21 @@ export default function EditProductPage({ params }: EditProductPageProps) {
         </Link>
       </div>
 
+      {!product.is_active && (
+        <div className="bg-yellow-900 text-yellow-100 p-4 rounded-lg">
+          This product is disabled and hidden from the storefront. Tick “Product is active” below
+          and save to put it back on sale.
+        </div>
+      )}
+
       {message && (
-        <div className={`p-4 rounded-lg ${
-          message.type === 'success' ? 'bg-green-900 text-green-200' : 'bg-red-900 text-red-200'
-        }`}>
+        <div
+          role="status"
+          aria-live="polite"
+          className={`p-4 rounded-lg ${
+            message.type === 'success' ? 'bg-green-900 text-green-200' : 'bg-red-900 text-red-200'
+          }`}
+        >
           {message.text}
         </div>
       )}
@@ -218,11 +295,12 @@ export default function EditProductPage({ params }: EditProductPageProps) {
         {/* Basic Information */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-white text-sm font-medium mb-2">
+            <label htmlFor="title" className="block text-white text-sm font-medium mb-2">
               Product Title *
             </label>
             <input
               type="text"
+              id="title"
               name="title"
               value={formData.title}
               onChange={handleInputChange}
@@ -233,10 +311,11 @@ export default function EditProductPage({ params }: EditProductPageProps) {
           </div>
 
           <div>
-            <label className="block text-white text-sm font-medium mb-2">
+            <label htmlFor="category" className="block text-white text-sm font-medium mb-2">
               Category *
             </label>
             <select
+              id="category"
               name="category"
               value={formData.category}
               onChange={handleInputChange}
@@ -244,20 +323,24 @@ export default function EditProductPage({ params }: EditProductPageProps) {
               className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
             >
               <option value="">Select Category</option>
-              {categories.map(category => (
+              {CATEGORIES.map(category => (
                 <option key={category} value={category}>{category}</option>
               ))}
+              {formData.category && !CATEGORIES.includes(formData.category) && (
+                <option value={formData.category}>{formData.category}</option>
+              )}
             </select>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="block text-white text-sm font-medium mb-2">
+            <label htmlFor="price" className="block text-white text-sm font-medium mb-2">
               Price (₹) *
             </label>
             <input
               type="number"
+              id="price"
               name="price"
               value={formData.price}
               onChange={handleInputChange}
@@ -270,59 +353,72 @@ export default function EditProductPage({ params }: EditProductPageProps) {
           </div>
 
           <div>
-            <label className="block text-white text-sm font-medium mb-2">
+            <span className="block text-white text-sm font-medium mb-2">
               Available Sizes *
-            </label>
+            </span>
             <div className="grid grid-cols-5 gap-2">
-              {sizes.map(size => (
-                <button
-                  key={size}
-                  type="button"
-                  onClick={() => handleSizeToggle(size)}
-                  className={`px-3 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium ${
-                    formData.sizes.includes(size)
-                      ? 'border-blue-500 bg-blue-600 text-white'
-                      : 'border-gray-600 text-gray-300 hover:border-blue-500 hover:text-blue-400'
-                  }`}
-                >
-                  {size}
-                </button>
-              ))}
+              {SIZES.map(size => {
+                const selected = formData.sizes.includes(size);
+
+                return (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => handleSizeToggle(size)}
+                    aria-pressed={selected}
+                    className={`px-3 py-2 rounded-lg border-2 transition-all duration-200 text-sm font-medium ${
+                      selected
+                        ? 'border-blue-500 bg-blue-600 text-white'
+                        : 'border-gray-600 text-gray-300 hover:border-blue-500 hover:text-blue-400'
+                    }`}
+                  >
+                    {size}
+                  </button>
+                );
+              })}
             </div>
             <p className="text-gray-400 text-xs mt-1">
               Select all available sizes for this product
             </p>
-            {formData.sizes.length > 0 && (
+            {formData.sizes.length > 0 ? (
               <p className="text-blue-400 text-xs mt-1">
                 Selected: {formData.sizes.join(', ')}
+              </p>
+            ) : (
+              <p className="text-red-300 text-xs mt-1">
+                At least one size is required
               </p>
             )}
           </div>
         </div>
 
         <div>
-          <label className="block text-white text-sm font-medium mb-2">
+          <label htmlFor="handle" className="block text-white text-sm font-medium mb-2">
             Handle (URL) *
           </label>
           <input
             type="text"
+            id="handle"
             name="handle"
             value={formData.handle}
             onChange={handleInputChange}
+            onBlur={handleHandleBlur}
             required
             className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
             placeholder="product-url-handle"
           />
           <p className="text-gray-400 text-xs mt-1">
-            URL-friendly identifier
+            URL-friendly identifier — lowercase letters, numbers and hyphens only. Changing it
+            breaks any existing link to /product/{product.handle}.
           </p>
         </div>
 
         <div>
-          <label className="block text-white text-sm font-medium mb-2">
+          <label htmlFor="description" className="block text-white text-sm font-medium mb-2">
             Description
           </label>
           <textarea
+            id="description"
             name="description"
             value={formData.description}
             onChange={handleInputChange}
@@ -354,10 +450,10 @@ export default function EditProductPage({ params }: EditProductPageProps) {
 
         {/* Product Images */}
         <div>
-          <label className="block text-white text-sm font-medium mb-2">
+          <span className="block text-white text-sm font-medium mb-2">
             Product Images
-          </label>
-          
+          </span>
+
           {uploadError && (
             <div className="mb-4 p-3 bg-red-900 text-red-200 rounded-lg">
               {uploadError}
@@ -377,7 +473,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
               <p className="text-gray-400 text-sm mb-2">Current Images:</p>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 {formData.images.map((imageUrl, index) => (
-                  <div key={index} className="relative group">
+                  <div key={`${index}-${imageUrl}`} className="relative group">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={imageUrl}
@@ -390,10 +486,11 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                     <button
                       type="button"
                       onClick={() => removeImage(index)}
-                      className="absolute -top-2 -right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="Remove image"
+                      className="absolute -top-2 -right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                      title={`Remove image ${index + 1}`}
+                      aria-label={`Remove image ${index + 1}`}
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
@@ -408,12 +505,12 @@ export default function EditProductPage({ params }: EditProductPageProps) {
         <div className="flex gap-4">
           <button
             type="submit"
-            disabled={isSaving}
+            disabled={isBusy}
             className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed font-medium"
           >
-            {isSaving ? 'Updating...' : 'Update Product'}
+            {isRedirecting ? 'Saved' : isSaving ? 'Updating...' : 'Update Product'}
           </button>
-          
+
           <Link
             href="/admin/products"
             className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 font-medium"

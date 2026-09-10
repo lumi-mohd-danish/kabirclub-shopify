@@ -17,7 +17,7 @@ export default function SignupPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const router = useRouter();
-  const { login } = useAuth();
+  const { signUp } = useAuth();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -57,26 +57,28 @@ export default function SignupPage() {
         return;
       }
 
-      // For demo purposes, simulate signup with basic validation
-      if (formData.firstName && formData.lastName && formData.email && formData.password) {
-        // Extract name from form data
-        const name = `${formData.firstName} ${formData.lastName}`;
-        
-        // Use the useAuth hook to login (simulating successful signup)
-        login(formData.email, name);
-        
-        // Show success message briefly
-        setSuccess('Account created successfully! Redirecting...');
-        
-        // Redirect to home page after a brief delay
-        setTimeout(() => {
-          router.push('/');
-        }, 1500);
-      } else {
-        setError('Please fill in all fields');
+      const name = `${formData.firstName} ${formData.lastName}`.trim();
+
+      const result = await signUp({
+        email: formData.email,
+        password: formData.password,
+        name
+      });
+
+      if (!result.success) {
+        setError(result.error || 'Could not create the account.');
+        return;
       }
-    } catch (err) {
-      setError('Signup failed. Please try again.');
+
+      if (result.needsEmailConfirmation) {
+        setSuccess('Account created. Check your email to confirm it, then sign in.');
+        return;
+      }
+
+      setSuccess('Account created successfully! Redirecting...');
+      router.replace('/');
+    } catch {
+      setError('Could not create your account right now. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -199,19 +201,9 @@ export default function SignupPage() {
               />
               <label htmlFor="terms" className="text-xs sm:text-sm text-gray-300 leading-tight">
                 I agree to the{' '}
-                <Link
-                  href="/terms"
-                  className="text-[#daa520] hover:text-[#b38a1d] transition-colors duration-200"
-                >
-                  Terms of Service
-                </Link>{' '}
+                <span className="text-[#daa520]">Terms of Service</span>{' '}
                 and{' '}
-                <Link
-                  href="/privacy"
-                  className="text-[#daa520] hover:text-[#b38a1d] transition-colors duration-200"
-                >
-                  Privacy Policy
-                </Link>
+                <span className="text-[#daa520]">Privacy Policy</span>
               </label>
             </div>
 

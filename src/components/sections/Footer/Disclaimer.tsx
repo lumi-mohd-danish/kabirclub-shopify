@@ -20,8 +20,8 @@ const Disclaimer = () => {
               Colors may appear differently based on your device display settings.
             </p>
             <p className="border-l-2 border-[#daa520] pl-3 italic">
-              By using our services, you agree to our <a href="/terms" className="text-[#daa520] underline hover:text-[#f5d76e]">Terms and Conditions</a> and 
-              <a href="/privacy-policy" className="text-[#daa520] underline hover:text-[#f5d76e]"> Privacy Policy</a>.
+              By using our services, you agree to our <span className="text-[#daa520]">Terms and Conditions</span> and 
+               <span className="text-[#daa520]">Privacy Policy</span>.
             </p>
           </div>
           

@@ -6,17 +6,20 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { path, secret } = body;
 
-    if (secret !== process.env.REVALIDATE_SECRET) {
+    // Fail closed. Comparing `undefined !== undefined` used to pass, so a
+    // deployment that forgot REVALIDATE_SECRET let anyone purge any path.
+    const expected = process.env.REVALIDATE_SECRET;
+    if (!expected || typeof secret !== 'string' || secret !== expected) {
       return NextResponse.json({ message: 'Invalid secret' }, { status: 401 });
     }
 
-    if (path) {
-      revalidatePath(path);
-      return NextResponse.json({ message: `Revalidated ${path}` });
+    if (typeof path !== 'string' || !path.startsWith('/')) {
+      return NextResponse.json({ message: 'No valid path provided' }, { status: 400 });
     }
 
-    return NextResponse.json({ message: 'No path provided' }, { status: 400 });
-  } catch (error) {
+    revalidatePath(path);
+    return NextResponse.json({ message: `Revalidated ${path}` });
+  } catch {
     return NextResponse.json({ message: 'Error revalidating' }, { status: 500 });
   }
 }

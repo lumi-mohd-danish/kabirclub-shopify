@@ -146,7 +146,7 @@ export default function AboutUsPage() {
               <div className="aspect-[4/5] w-full overflow-hidden" style={{position: 'relative'}}>
                 <div className="absolute inset-0 bg-black/30 transition-opacity duration-300 group-hover:bg-black/10"></div>
                 <Image 
-                  src="/images/about/tshirts.jpg" 
+                  src="/images/about/shirts.jpg" 
                   alt="T-shirts collection" 
                   fill 
                   sizes="(min-width: 768px) 30vw, 90vw"
@@ -170,7 +170,7 @@ export default function AboutUsPage() {
               <div className="aspect-[4/5] w-full overflow-hidden" style={{position: 'relative'}}>
                 <div className="absolute inset-0 bg-black/30 transition-opacity duration-300 group-hover:bg-black/10"></div>
                 <Image 
-                  src="/images/about/jeans.jpg" 
+                  src="/images/about/shirts.jpg" 
                   alt="Jeans collection" 
                   fill 
                   sizes="(min-width: 768px) 30vw, 90vw"

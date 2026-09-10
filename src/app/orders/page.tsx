@@ -1,7 +1,8 @@
 'use client';
 
 import { useAuth } from '@/hooks/useAuth';
-import { getOrders } from '@/lib/supabase/api';
+import { getCartSessionId } from '@/components/cart/actions';
+import { GST_RATE, getOrders } from '@/lib/supabase/api';
 import { Order } from '@/lib/supabase/types';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -9,6 +10,22 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 // Force dynamic rendering to avoid localStorage issues
 export const dynamic = 'force-dynamic';
+
+// Pinned to en-IN so the server and the browser always agree on grouping and
+// symbol, and so raw floating point totals (243.07999999999998) never reach the
+// screen.
+const inrFormatter = new Intl.NumberFormat('en-IN', {
+  style: 'currency',
+  currency: 'INR',
+  currencyDisplay: 'narrowSymbol',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+});
+
+const formatPrice = (value: number | string | null | undefined): string => {
+  const amount = typeof value === 'string' ? Number.parseFloat(value) : value;
+  return inrFormatter.format(typeof amount === 'number' && Number.isFinite(amount) ? amount : 0);
+};
 
 export default function OrdersPage() {
   const { isAuthenticated, user, isLoading: authLoading } = useAuth();
@@ -23,7 +40,6 @@ export default function OrdersPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (authLoading) {
-        console.log('Auth loading timeout reached');
         setLoadingTimeout(true);
       }
     }, 3000); // Reduced to 3 seconds
@@ -35,7 +51,6 @@ export default function OrdersPage() {
   useEffect(() => {
     const forceCompleteTimer = setTimeout(() => {
       if (authLoading) {
-        console.log('Force completing auth loading state');
         // Force the component to render with current state
         setLoadingTimeout(true);
       }
@@ -47,7 +62,6 @@ export default function OrdersPage() {
   const fetchOrders = useCallback(async () => {
     // Prevent multiple fetches
     if (hasFetchedOrders.current) {
-      console.log('Orders already fetched, skipping...');
       return;
     }
 
@@ -55,9 +69,9 @@ export default function OrdersPage() {
       setIsLoading(true);
       setError(null);
       
-      const sessionId = getSessionId();
+      const sessionId = await getSessionId();
       if (!sessionId) {
-        setError('No session found. Please add items to cart first.');
+        setError('You have no orders yet. Add something to your cart to get started.');
         return;
       }
 
@@ -75,79 +89,24 @@ export default function OrdersPage() {
   useEffect(() => {
     // Wait for auth to be initialized
     if (authLoading) {
-      console.log('Auth still loading...');
       return;
     }
-    
-    console.log('Auth state:', { 
-      isAuthenticated: isAuthenticated(), 
-      user: user, 
-      authLoading 
-    });
-    
+
     // Check if user is authenticated
     if (!isAuthenticated() || !user) {
-      console.log('User not authenticated, redirecting to login');
       router.push('/login');
       return;
     }
-    
+
     // User is authenticated, fetch orders (only once)
     if (!hasFetchedOrders.current) {
-      console.log('User authenticated, fetching orders for user:', user.email);
       fetchOrders();
     }
   }, [authLoading, user, fetchOrders, isAuthenticated, router]); // Added missing dependencies
 
-  // Debug: Log current state
-  console.log('Orders page render state:', { 
-    authLoading, 
-    isAuthenticated: isAuthenticated(), 
-    user, 
-    isLoading 
-  });
-
-  // Manual authentication check
-  const checkAuthManually = () => {
-    // Only run on client side
-    if (typeof window === 'undefined') {
-      return false;
-    }
-    
-    try {
-      const isLoggedIn = localStorage.getItem('isLoggedIn');
-      const userEmail = localStorage.getItem('userEmail');
-      const userName = localStorage.getItem('userName');
-      
-      console.log('Manual auth check:', { isLoggedIn, userEmail, userName });
-      
-      if (isLoggedIn === 'true' && userEmail && userName) {
-        console.log('User is actually logged in!');
-        return true;
-      } else {
-        console.log('User is not logged in');
-        return false;
-      }
-    } catch (error) {
-      console.error('Manual auth check error:', error);
-      return false;
-    }
-  };
-
-  // Force render if auth is stuck
-  if (authLoading && typeof window !== 'undefined' && checkAuthManually()) {
-    console.log('Auth is stuck but user is logged in, forcing render');
-    // Force the component to continue
-  }
-
-  const getSessionId = () => {
-    const cookies = document.cookie.split(';');
-    const sessionCookie = cookies.find(cookie => cookie.trim().startsWith('sessionId='));
-    if (sessionCookie) {
-      return sessionCookie.split('=')[1];
-    }
-    return null;
-  };
+  // The cart session cookie is httpOnly, so it is deliberately invisible to
+  // `document.cookie`. The server action is the only way to read it.
+  const getSessionId = (): Promise<string | null> => getCartSessionId();
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -199,12 +158,6 @@ export default function OrdersPage() {
         </div>
       </div>
     );
-  }
-
-  // Force render if auth is stuck but we have user data
-  if (authLoading && user) {
-    console.log('Auth stuck but user exists, forcing render');
-    // Continue with the component
   }
 
   // Timeout state
@@ -350,7 +303,7 @@ export default function OrdersPage() {
 
               {/* Order Items */}
               <div className="mb-4">
-                <h4 className="text-md font-medium text-white mb-3">Order Items:</h4>
+                <h4 className="text-base font-semibold text-white mb-3">Order Items:</h4>
                 <div className="space-y-2">
                   {order.items.map((item, index) => (
                     <div key={index} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
@@ -361,8 +314,8 @@ export default function OrdersPage() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="text-white font-medium">₹{item.totalPrice}</p>
-                        <p className="text-gray-400 text-sm">₹{item.price} each</p>
+                        <p className="text-white font-medium">{formatPrice(item.totalPrice)}</p>
+                        <p className="text-gray-400 text-sm">{formatPrice(item.price)} each</p>
                       </div>
                     </div>
                   ))}
@@ -373,21 +326,32 @@ export default function OrdersPage() {
               <div className="bg-gray-800 rounded-lg p-4 mb-4">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-gray-300">Subtotal:</span>
-                  <span className="text-white">₹{order.subtotal}</span>
+                  <span className="text-white">{formatPrice(order.subtotal)}</span>
                 </div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-gray-300">Shipping:</span>
-                  <span className="text-white">₹{order.shippingCost}</span>
+                  <span className="text-white">{formatPrice(order.shippingCost)}</span>
+                </div>
+                {/* `orders` has no tax column, so GST is derived the way the
+                    data layer documents it: total - subtotal - shipping.
+                    Without this row the printed figures do not add up. */}
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-300">{`GST (${Math.round(GST_RATE * 100)}%):`}</span>
+                  <span className="text-white">
+                    {formatPrice(
+                      Math.max(0, order.totalAmount - order.subtotal - order.shippingCost)
+                    )}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center pt-2 border-t border-gray-600">
                   <span className="text-lg font-semibold text-[#daa520]">Total:</span>
-                  <span className="text-lg font-bold text-[#daa520]">₹{order.totalAmount}</span>
+                  <span className="text-lg font-bold text-[#daa520]">{formatPrice(order.totalAmount)}</span>
                 </div>
               </div>
 
               {/* Shipping Address */}
               <div className="mb-4">
-                <h4 className="text-md font-medium text-white mb-3">Shipping Address:</h4>
+                <h4 className="text-base font-semibold text-white mb-3">Shipping Address:</h4>
                 <div className="bg-gray-800 rounded-lg p-4">
                   <p className="text-white font-medium">{order.shippingAddress.fullName}</p>
                   <p className="text-gray-300">{order.shippingAddress.addressLine1}</p>
@@ -404,7 +368,7 @@ export default function OrdersPage() {
 
               {/* Payment Method */}
               <div>
-                <h4 className="text-md font-medium text-white mb-3">Payment Method:</h4>
+                <h4 className="text-base font-semibold text-white mb-3">Payment Method:</h4>
                 <div className="bg-gray-800 rounded-lg p-4">
                   <p className="text-white font-medium capitalize">
                     {order.paymentMethod.replace('_', ' ')}
