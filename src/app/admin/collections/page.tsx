@@ -83,7 +83,7 @@ export default function AdminCollectionsPage() {
 
       await deleteCollection(id);
 
-      setCollections(current => current.filter(c => c.id !== id));
+      setCollections((current) => current.filter((c) => c.id !== id));
       setMessage({ type: 'success', text: `Collection "${title}" deleted successfully` });
     } catch (error) {
       setMessage({ type: 'error', text: errorMessage(error, 'Failed to delete collection') });

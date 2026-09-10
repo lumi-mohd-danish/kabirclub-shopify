@@ -2,42 +2,56 @@
 
 import { createUrl } from '@/lib/utils';
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
+import { useId } from 'react';
 
-export default function Search() {
+/**
+ * The header search form.
+ *
+ * It deliberately does NOT read `useSearchParams()`. This component is mounted
+ * in the root layout on every route, and a `useSearchParams()` call there with
+ * no Suspense boundary above it opts every statically rendered page out of
+ * prerendering. Submitting a fresh `/search?q=…` is also the honest behaviour
+ * for a global entry point: carrying `category` or `page` over from whatever
+ * page you happened to be on would silently narrow the results.
+ */
+export default function Search({ onSubmitted }: { onSubmitted?: () => void }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const inputId = useId();
 
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
-    const val = e.target as HTMLFormElement;
-    const search = val.search as HTMLInputElement;
-    const newParams = new URLSearchParams(searchParams.toString());
+    const field = event.currentTarget.elements.namedItem('search');
+    const value = field instanceof HTMLInputElement ? field.value.trim() : '';
+    const params = new URLSearchParams();
 
-    if (search.value) {
-      newParams.set('q', search.value);
-    } else {
-      newParams.delete('q');
-    }
+    if (value) params.set('q', value);
 
-    router.push(createUrl('/search', newParams));
+    router.push(createUrl('/search', params));
+    onSubmitted?.();
   }
 
   return (
-    <form onSubmit={onSubmit} className="relative w-full max-w-[550px] lg:w-80 xl:w-full">
+    <form role="search" onSubmit={onSubmit} className="relative w-full">
+      <label htmlFor={inputId} className="sr-only">
+        Search products
+      </label>
       <input
-        key={searchParams?.get('q')}
-        type="text"
+        id={inputId}
         name="search"
-        placeholder="Search for products..."
+        type="search"
+        placeholder="Search for products"
         autoComplete="off"
-        defaultValue={searchParams?.get('q') || ''}
-        className="w-full rounded-lg border border-purple bg-white/80 px-4 py-2 text-black text-sm outline-none placeholder:text-black focus-visible:outline"
+        className="field-ink pr-12"
       />
-      <div className="absolute right-0 top-0 mr-3 flex h-full items-center">
-        <MagnifyingGlassIcon className="h-4" />
-      </div>
+      <button
+        type="submit"
+        className="absolute inset-y-0 right-0 inline-flex w-12 items-center justify-center rounded-control text-paper-muted transition-colors duration-fast ease-cloth hover:text-paper"
+      >
+        <MagnifyingGlassIcon className="h-5 w-5" aria-hidden="true" />
+        <span className="sr-only">Search</span>
+      </button>
     </form>
   );
 }

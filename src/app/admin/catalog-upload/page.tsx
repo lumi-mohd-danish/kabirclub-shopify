@@ -23,7 +23,8 @@ const LABEL = 'eyebrow mb-2 block text-paper-muted';
 
 // The method tabs: the selected one takes the gold edge — the woven thread as
 // active-tile marker — rather than a gold fill.
-const TAB = 'rounded-control border px-4 py-3 text-body-sm font-medium transition-colors duration-fast ease-cloth';
+const TAB =
+  'rounded-control border px-4 py-3 text-body-sm font-medium transition-colors duration-fast ease-cloth';
 const TAB_ON = 'border-zari-500 bg-ink-700 text-paper';
 const TAB_OFF = 'border-ink-faint text-paper-muted hover:border-paper-muted hover:text-paper';
 
@@ -57,7 +58,7 @@ export default function CatalogUploadPage() {
     for (let i = 1; i < lines.length; i++) {
       const line = lines[i];
       if (!line) continue;
-      const values = line.split(',').map(v => v.trim());
+      const values = line.split(',').map((v) => v.trim());
       if (values.length >= 6) {
         const product: CSVProduct = {
           title: values[0] || '',
@@ -65,9 +66,9 @@ export default function CatalogUploadPage() {
           price: parseFloat(values[2] || '0') || 0,
           category: values[3] || '',
           handle: values[4] || '',
-          images: values[5] ? values[5].split('|').filter(img => img.trim()) : []
+          images: values[5] ? values[5].split('|').filter((img) => img.trim()) : []
         };
-        
+
         if (product.title && product.price > 0 && product.handle) {
           products.push(product);
         }
@@ -106,19 +107,18 @@ export default function CatalogUploadPage() {
       }
 
       const result = await bulkCreateProducts(products);
-      
+
       setMessage({
         type: 'success',
         text: `Successfully uploaded ${result.length} products!`
       });
-      
+
       // Reset form
       setFile(null);
       setJsonData('');
       if (document.getElementById('file-upload')) {
         (document.getElementById('file-upload') as HTMLInputElement).value = '';
       }
-
     } catch (error: any) {
       console.error('Upload error:', error);
       setMessage({
@@ -151,20 +151,20 @@ export default function CatalogUploadPage() {
   const downloadSampleJSON = () => {
     const sampleJSON = [
       {
-        title: "Premium White T-Shirt",
-        description: "High quality cotton t-shirt in white",
+        title: 'Premium White T-Shirt',
+        description: 'High quality cotton t-shirt in white',
         price: 999,
-        category: "Topwear",
-        handle: "premium-white-tshirt",
-        images: ["https://example.com/image1.jpg", "https://example.com/image2.jpg"]
+        category: 'Topwear',
+        handle: 'premium-white-tshirt',
+        images: ['https://example.com/image1.jpg', 'https://example.com/image2.jpg']
       },
       {
-        title: "Blue Denim Jeans",
-        description: "Classic blue denim jeans",
+        title: 'Blue Denim Jeans',
+        description: 'Classic blue denim jeans',
         price: 1999,
-        category: "Bottomwear",
-        handle: "blue-denim-jeans",
-        images: ["https://example.com/image3.jpg"]
+        category: 'Bottomwear',
+        handle: 'blue-denim-jeans',
+        images: ['https://example.com/image3.jpg']
       }
     ];
 
@@ -250,7 +250,7 @@ export default function CatalogUploadPage() {
                 className={FILE_INPUT}
               />
             </div>
-            
+
             <div className="flex flex-wrap gap-3">
               <button type="button" onClick={downloadSampleCSV} className={BTN_GHOST}>
                 Download Sample CSV
@@ -283,7 +283,7 @@ export default function CatalogUploadPage() {
                 onChange={handleFileUpload}
                 className={`${FILE_INPUT} mb-4`}
               />
-              
+
               <textarea
                 value={jsonData}
                 onChange={(e) => setJsonData(e.target.value)}
@@ -305,7 +305,10 @@ export default function CatalogUploadPage() {
           <div className="border border-ink-700 bg-ink-900 p-4">
             <p className="mb-4 text-body-sm text-paper">
               For manual entry, use the{' '}
-              <a href="/admin/products/new" className="thread-link-ink text-zari-500">Add New Product</a> page.
+              <a href="/admin/products/new" className="thread-link-ink text-zari-500">
+                Add New Product
+              </a>{' '}
+              page.
             </p>
             <a href="/admin/products/new" className={BTN_GHOST}>
               Add New Product
@@ -315,12 +318,7 @@ export default function CatalogUploadPage() {
 
         {/* Upload Button */}
         {(uploadMethod === 'csv' && file) || (uploadMethod === 'json' && (file || jsonData)) ? (
-          <button
-            type="button"
-            onClick={handleUpload}
-            disabled={isLoading}
-            className={BTN_GOLD}
-          >
+          <button type="button" onClick={handleUpload} disabled={isLoading} className={BTN_GOLD}>
             {isLoading ? 'Uploading...' : 'Upload Catalog'}
           </button>
         ) : null}
@@ -330,12 +328,30 @@ export default function CatalogUploadPage() {
       <div className="border border-ink-700 bg-ink-800 p-4 md:p-6">
         <h2 className="eyebrow text-paper-muted">Instructions</h2>
         <div className="mt-3 space-y-2 text-body-sm text-paper-muted">
-          <p>• <strong className="font-medium text-paper">CSV Format:</strong> Use comma-separated values with headers</p>
-          <p>• <strong className="font-medium text-paper">JSON Format:</strong> Array of product objects</p>
-          <p>• <strong className="font-medium text-paper">Required fields:</strong> title, price, handle, category</p>
-          <p>• <strong className="font-medium text-paper">Images:</strong> Provide valid URLs (for CSV, separate multiple URLs with |)</p>
-          <p>• <strong className="font-medium text-paper">Handle:</strong> Must be unique URL-friendly identifier (e.g., &quot;premium-white-tshirt&quot;)</p>
-          <p>• <strong className="font-medium text-paper">Price:</strong> In rupees (e.g., 999 for ₹999)</p>
+          <p>
+            • <strong className="font-medium text-paper">CSV Format:</strong> Use comma-separated
+            values with headers
+          </p>
+          <p>
+            • <strong className="font-medium text-paper">JSON Format:</strong> Array of product
+            objects
+          </p>
+          <p>
+            • <strong className="font-medium text-paper">Required fields:</strong> title, price,
+            handle, category
+          </p>
+          <p>
+            • <strong className="font-medium text-paper">Images:</strong> Provide valid URLs (for
+            CSV, separate multiple URLs with |)
+          </p>
+          <p>
+            • <strong className="font-medium text-paper">Handle:</strong> Must be unique
+            URL-friendly identifier (e.g., &quot;premium-white-tshirt&quot;)
+          </p>
+          <p>
+            • <strong className="font-medium text-paper">Price:</strong> In rupees (e.g., 999 for
+            ₹999)
+          </p>
         </div>
       </div>
     </div>

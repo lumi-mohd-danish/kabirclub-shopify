@@ -29,7 +29,7 @@ export default function NewProductPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -40,31 +40,37 @@ export default function NewProductPage() {
     images: [] as string[],
     is_active: true
   });
-  
+
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const categories = ['Topwear', 'Bottomwear', 'Accessories', 'Footwear'];
   const sizes = ['S', 'M', 'L', 'XL', 'XXL'];
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value, type } = e.target;
-    
+
     if (name === 'title') {
       // Auto-generate handle from title with random number
       const randomNumber = Math.floor(Math.random() * 90000) + 10000; // 5-digit random number
-      const autoHandle = value.toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .trim() + '-' + randomNumber;
-      
-      setFormData(prev => ({
+      const autoHandle =
+        value
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-')
+          .trim() +
+        '-' +
+        randomNumber;
+
+      setFormData((prev) => ({
         ...prev,
         [name]: value,
         handle: autoHandle
       }));
     } else {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
       }));
@@ -72,7 +78,7 @@ export default function NewProductPage() {
   };
 
   const handleImageUploaded = (url: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       images: [...prev.images, url]
     }));
@@ -84,31 +90,37 @@ export default function NewProductPage() {
   };
 
   const removeImage = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
     }));
   };
 
   const handleSizeToggle = (size: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       sizes: prev.sizes.includes(size)
-        ? prev.sizes.filter(s => s !== size)
+        ? prev.sizes.filter((s) => s !== size)
         : [...prev.sizes, size]
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       requireAdmin();
       setIsLoading(true);
       setMessage(null);
 
       // Validation
-      if (!formData.title || !formData.price || !formData.category || !formData.handle || formData.sizes.length === 0) {
+      if (
+        !formData.title ||
+        !formData.price ||
+        !formData.category ||
+        !formData.handle ||
+        formData.sizes.length === 0
+      ) {
         throw new Error('Please fill in all required fields and select at least one size');
       }
 
@@ -132,7 +144,7 @@ export default function NewProductPage() {
       };
 
       await createProduct(productData);
-      
+
       setMessage({
         type: 'success',
         text: 'Product created successfully!'
@@ -142,7 +154,6 @@ export default function NewProductPage() {
       setTimeout(() => {
         router.push('/admin/products');
       }, 1500);
-
     } catch (error: any) {
       console.error('Error creating product:', error);
       setMessage({
@@ -161,7 +172,9 @@ export default function NewProductPage() {
           <p className="eyebrow text-zari-500">Products</p>
           <h1 className="mt-2 font-display text-h2 text-paper">Add New Product</h1>
           <div className="rule-zari mt-3 w-12" />
-          <p className="mt-3 text-body-sm text-paper-muted">Create a new product for your catalog</p>
+          <p className="mt-3 text-body-sm text-paper-muted">
+            Create a new product for your catalog
+          </p>
         </div>
         <Link href="/admin/products" className={BTN_GHOST}>
           Back to Products
@@ -180,7 +193,10 @@ export default function NewProductPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5 border border-ink-700 bg-ink-800 p-4 md:p-6">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-5 border border-ink-700 bg-ink-800 p-4 md:p-6"
+      >
         {/* Basic Information */}
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <div>
@@ -212,8 +228,10 @@ export default function NewProductPage() {
               className="field-ink py-2"
             >
               <option value="">Select Category</option>
-              {categories.map(category => (
-                <option key={category} value={category}>{category}</option>
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
               ))}
             </select>
           </div>
@@ -239,11 +257,9 @@ export default function NewProductPage() {
           </div>
 
           <div>
-            <span className={LABEL}>
-              Available Sizes *
-            </span>
+            <span className={LABEL}>Available Sizes *</span>
             <div className="grid grid-cols-5 gap-2">
-              {sizes.map(size => {
+              {sizes.map((size) => {
                 const selected = formData.sizes.includes(size);
 
                 return (
@@ -259,13 +275,9 @@ export default function NewProductPage() {
                 );
               })}
             </div>
-            <p className={HINT}>
-              Select all available sizes for this product
-            </p>
+            <p className={HINT}>Select all available sizes for this product</p>
             {formData.sizes.length > 0 && (
-              <p className="mt-1 text-caption text-paper">
-                Selected: {formData.sizes.join(', ')}
-              </p>
+              <p className="mt-1 text-caption text-paper">Selected: {formData.sizes.join(', ')}</p>
             )}
           </div>
         </div>
@@ -309,14 +321,10 @@ export default function NewProductPage() {
 
         {/* Product Images */}
         <div>
-          <span className={LABEL}>
-            Product Images
-          </span>
-          
+          <span className={LABEL}>Product Images</span>
+
           {uploadError && (
-            <div className="mb-4 bg-madder px-4 py-3 text-body-sm text-paper">
-              {uploadError}
-            </div>
+            <div className="mb-4 bg-madder px-4 py-3 text-body-sm text-paper">{uploadError}</div>
           )}
 
           <ImageUpload
@@ -349,8 +357,19 @@ export default function NewProductPage() {
                       title="Remove image"
                       aria-label={`Remove image ${index + 1}`}
                     >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
                       </svg>
                     </button>
                   </div>
@@ -362,14 +381,10 @@ export default function NewProductPage() {
 
         {/* Submit Button */}
         <div className="flex flex-wrap gap-3 border-t border-ink-700 pt-5">
-          <button
-            type="submit"
-            disabled={isLoading}
-            className={BTN_GOLD}
-          >
+          <button type="submit" disabled={isLoading} className={BTN_GOLD}>
             {isLoading ? 'Creating...' : 'Create Product'}
           </button>
-          
+
           <Link href="/admin/products" className={BTN_GHOST}>
             Cancel
           </Link>

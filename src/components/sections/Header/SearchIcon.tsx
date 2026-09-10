@@ -1,62 +1,84 @@
 'use client';
 
-// react
-import { useEffect, useRef, useState } from 'react';
+import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
-// next
-import Image from 'next/image';
-
-import { AnimatePresence, LazyMotion, domAnimation, m } from 'framer-motion';
-
-// components
 import Search from './search';
 
-const SearchIcon = () => {
-  const [isSearchVisible, setIsSearchVisible] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+/**
+ * Desktop search: a toggle in the bar, and a full-width strip that drops below
+ * the header on the same ink ground. Below `lg` the search lives inside
+ * <MobileMenu /> instead, so the bar stays down to a logo, cart and account.
+ *
+ * The panel is hidden with the `hidden` attribute (no `display` utility on that
+ * element, so the attribute wins), which keeps the input out of the tab order
+ * while it is closed. Escape closes and hands focus back to the toggle;
+ * framer-motion's LazyMotion wrapper came off, since a strip that opens and
+ * closes does not justify shipping an animation runtime into the header.
+ */
+export default function SearchIcon() {
+  const [isOpen, setIsOpen] = useState(false);
+  const panelId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  const close = useCallback((returnFocus = false) => {
+    setIsOpen(false);
+    if (returnFocus) triggerRef.current?.focus();
+  }, []);
+
   useEffect(() => {
-    isSearchVisible && ref.current && ref.current.querySelector<HTMLInputElement>('input')?.focus();
-  }, [isSearchVisible]);
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' || e.key === 'Enter') setIsSearchVisible(false);
+    if (!isOpen) return;
+
+    panelRef.current?.querySelector('input')?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close(true);
     };
+
+    const handlePointerDown = (event: Event) => {
+      const target = event.target as Node;
+      if (panelRef.current?.contains(target) || triggerRef.current?.contains(target)) return;
+      close();
+    };
+
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  });
+    document.addEventListener('pointerdown', handlePointerDown);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('pointerdown', handlePointerDown);
+    };
+  }, [isOpen, close]);
+
   return (
     <>
       <button
-        title="search"
-        onClick={() => setIsSearchVisible(!isSearchVisible)}
-        className="header-link hidden md:block [&>*]:transition-all [&>*]:duration-300 hover:[&>*]:opacity-50"
+        ref={triggerRef}
+        type="button"
+        aria-expanded={isOpen}
+        aria-controls={panelId}
+        onClick={() => setIsOpen((open) => !open)}
+        className="hidden h-10 w-10 items-center justify-center text-paper-muted transition-colors duration-fast ease-cloth hover:text-paper lg:inline-flex"
       >
-        <Image src="/images/magnifier.png" width="36" height="36" alt="search" />
-      </button>
-      <AnimatePresence>
-        {isSearchVisible && (
-          <div
-            className="absolute inset-0 z-40 hidden md:block"
-            onClick={() => setIsSearchVisible(false)}
-          >
-            <LazyMotion features={domAnimation}>
-              <m.div
-                className="absolute left-0 right-0 top-[80px] flex h-[50px] items-center justify-center bg-black backdrop-blur-lg"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5, ease: 'easeInOut' }}
-                onClick={(e) => e.stopPropagation()}
-                ref={ref}
-              >
-                <Search />
-              </m.div>
-            </LazyMotion>
-          </div>
+        {isOpen ? (
+          <XMarkIcon className="h-6 w-6" aria-hidden="true" />
+        ) : (
+          <MagnifyingGlassIcon className="h-6 w-6" aria-hidden="true" />
         )}
-      </AnimatePresence>
+        <span className="sr-only">{isOpen ? 'Close search' : 'Search'}</span>
+      </button>
+
+      <div
+        id={panelId}
+        ref={panelRef}
+        hidden={!isOpen}
+        className="absolute left-0 right-0 top-full z-30 border-b border-ink-700 bg-ink-900"
+      >
+        <div className="container-page py-4">
+          <Search onSubmitted={() => close(true)} />
+        </div>
+      </div>
     </>
   );
-};
-
-export default SearchIcon;
+}

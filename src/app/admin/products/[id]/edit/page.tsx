@@ -137,7 +137,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value, type } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
     }));
@@ -145,11 +145,11 @@ export default function EditProductPage({ params }: EditProductPageProps) {
 
   // Tidy the handle once the field is left, rather than fighting the keystrokes.
   const handleHandleBlur = () => {
-    setFormData(prev => ({ ...prev, handle: slugify(prev.handle) }));
+    setFormData((prev) => ({ ...prev, handle: slugify(prev.handle) }));
   };
 
   const handleImageUploaded = (url: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       images: [...prev.images, url]
     }));
@@ -166,17 +166,17 @@ export default function EditProductPage({ params }: EditProductPageProps) {
       return;
     }
 
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       images: prev.images.filter((_, i) => i !== index)
     }));
   };
 
   const handleSizeToggle = (size: string) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       sizes: prev.sizes.includes(size)
-        ? prev.sizes.filter(s => s !== size)
+        ? prev.sizes.filter((s) => s !== size)
         : [...prev.sizes, size]
     }));
   };
@@ -224,7 +224,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
       }
 
       // Keep the tidied handle visible so the saved value and the field agree.
-      setFormData(prev => ({ ...prev, handle }));
+      setFormData((prev) => ({ ...prev, handle }));
 
       await updateProduct(params.id, {
         title,
@@ -306,7 +306,10 @@ export default function EditProductPage({ params }: EditProductPageProps) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5 border border-ink-700 bg-ink-800 p-4 md:p-6">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-5 border border-ink-700 bg-ink-800 p-4 md:p-6"
+      >
         {/* Basic Information */}
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <div>
@@ -338,8 +341,10 @@ export default function EditProductPage({ params }: EditProductPageProps) {
               className="field-ink py-2"
             >
               <option value="">Select Category</option>
-              {CATEGORIES.map(category => (
-                <option key={category} value={category}>{category}</option>
+              {CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
               ))}
               {formData.category && !CATEGORIES.includes(formData.category) && (
                 <option value={formData.category}>{formData.category}</option>
@@ -368,11 +373,9 @@ export default function EditProductPage({ params }: EditProductPageProps) {
           </div>
 
           <div>
-            <span className={LABEL}>
-              Available Sizes *
-            </span>
+            <span className={LABEL}>Available Sizes *</span>
             <div className="grid grid-cols-5 gap-2">
-              {SIZES.map(size => {
+              {SIZES.map((size) => {
                 const selected = formData.sizes.includes(size);
 
                 return (
@@ -388,17 +391,11 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                 );
               })}
             </div>
-            <p className={HINT}>
-              Select all available sizes for this product
-            </p>
+            <p className={HINT}>Select all available sizes for this product</p>
             {formData.sizes.length > 0 ? (
-              <p className="mt-1 text-caption text-paper">
-                Selected: {formData.sizes.join(', ')}
-              </p>
+              <p className="mt-1 text-caption text-paper">Selected: {formData.sizes.join(', ')}</p>
             ) : (
-              <p className={INLINE_ERROR}>
-                At least one size is required
-              </p>
+              <p className={INLINE_ERROR}>At least one size is required</p>
             )}
           </div>
         </div>
@@ -454,21 +451,15 @@ export default function EditProductPage({ params }: EditProductPageProps) {
               Product is active (visible to customers)
             </label>
           </div>
-          <p className={HINT}>
-            Uncheck to disable this product from being visible to customers
-          </p>
+          <p className={HINT}>Uncheck to disable this product from being visible to customers</p>
         </div>
 
         {/* Product Images */}
         <div>
-          <span className={LABEL}>
-            Product Images
-          </span>
+          <span className={LABEL}>Product Images</span>
 
           {uploadError && (
-            <div className="mb-4 bg-madder px-4 py-3 text-body-sm text-paper">
-              {uploadError}
-            </div>
+            <div className="mb-4 bg-madder px-4 py-3 text-body-sm text-paper">{uploadError}</div>
           )}
 
           <ImageUpload
@@ -501,8 +492,19 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                       title={`Remove image ${index + 1}`}
                       aria-label={`Remove image ${index + 1}`}
                     >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
                       </svg>
                     </button>
                   </div>
@@ -514,11 +516,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
 
         {/* Submit Button */}
         <div className="flex flex-wrap gap-3 border-t border-ink-700 pt-5">
-          <button
-            type="submit"
-            disabled={isBusy}
-            className={BTN_GOLD}
-          >
+          <button type="submit" disabled={isBusy} className={BTN_GOLD}>
             {isRedirecting ? 'Saved' : isSaving ? 'Updating...' : 'Update Product'}
           </button>
 

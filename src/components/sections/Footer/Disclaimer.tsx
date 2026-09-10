@@ -1,38 +1,45 @@
+/**
+ * The store's only INR / tax / product-accuracy disclosure. It existed as a
+ * file but was never rendered anywhere — `grep -rn Disclaimer src/` matched
+ * only its own declaration — so the disclosure legally shipped nowhere. It is
+ * now mounted in <Footer />, which puts it on every route.
+ *
+ * "Terms and Conditions" and "Privacy Policy" are deliberately plain text, not
+ * links. Phase 0 de-linked them because neither route exists under src/app and
+ * legal copy must not be invented to fill one. They are emphasised in `paper`
+ * rather than in gold so they read as named documents rather than as links
+ * that are broken.
+ */
 const Disclaimer = () => {
   return (
-    <div className="w-full border-y border-[#daa520]/30 bg-black/5 py-6">
-      <div className="mx-auto max-w-[95%] md:max-w-[1200px]">
-        <div className="relative overflow-hidden rounded-lg bg-gradient-to-r from-black/80 to-black/90 p-5 shadow-lg">
-          {/* Decorative elements */}
-          <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-[#daa520] via-[#f5d76e] to-[#daa520]"></div>
-          <div className="absolute bottom-0 right-0 h-16 w-16 rotate-45 bg-[#daa520]/10"></div>
-          <div className="absolute -left-2 bottom-0 h-10 w-10 rounded-full bg-[#daa520]/5"></div>
-          
-          <h3 className="mb-3 font-lora text-xl font-semibold text-[#daa520]">Disclaimer</h3>
-          
-          <div className="space-y-3 text-sm leading-relaxed text-gray-300">
-            <p>
-              All product prices displayed on our website are in Indian Rupees (INR) and are inclusive of all taxes. 
-              Prices are subject to change without prior notice.
-            </p>
-            <p>
-              While we strive to provide accurate product information, images displayed may vary slightly from the actual product.
-              Colors may appear differently based on your device display settings.
-            </p>
-            <p className="border-l-2 border-[#daa520] pl-3 italic">
-              By using our services, you agree to our <span className="text-[#daa520]">Terms and Conditions</span> and 
-               <span className="text-[#daa520]">Privacy Policy</span>.
-            </p>
-          </div>
-          
-          {/* Copyright line with decorative element */}
-          <div className="mt-4 flex items-center border-t border-[#daa520]/20 pt-3 text-xs text-gray-400">
-            <span className="inline-block h-3 w-3 rounded-full bg-[#daa520]/40 mr-2"></span>
-            <span>© {new Date().getFullYear()} Kabirclub. All Rights Reserved.</span>
-          </div>
-        </div>
+    <section
+      aria-labelledby="footer-disclaimer"
+      className="mt-12 border-t border-ink-700 pt-10 md:mt-16"
+    >
+      <h3 id="footer-disclaimer" className="eyebrow text-zari-500">
+        Disclaimer
+      </h3>
+
+      <div className="mt-5 flex max-w-[62ch] flex-col gap-4 text-body text-paper-muted">
+        <p>
+          All product prices displayed on our website are in Indian Rupees (INR) and are inclusive
+          of all taxes. Prices are subject to change without prior notice.
+        </p>
+        <p>
+          While we strive to provide accurate product information, images displayed may vary
+          slightly from the actual product. Colors may appear differently based on your device
+          display settings.
+        </p>
+        {/* The one accent hairline in this block: 1px of zari at 35%, the
+            system's accent border. The original was a 2px solid #daa520 bar,
+            and 2px borders are out everywhere except the selected size chip. */}
+        <p className="border-l border-zari-500/35 pl-4">
+          By using our services, you agree to our{' '}
+          <span className="font-medium text-paper">Terms and Conditions</span> and{' '}
+          <span className="font-medium text-paper">Privacy Policy</span>.
+        </p>
       </div>
-    </div>
+    </section>
   );
 };
 

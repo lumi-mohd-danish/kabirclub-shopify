@@ -8,14 +8,9 @@ import { useEffect } from 'react';
 // Admin chrome is an ink band, like the storefront header and footer, but at
 // tool density: the nav is one 11px eyebrow row rather than an editorial bar.
 // The gold thread is drawn on hover and focus-visible alike by `.thread-link-ink`.
-const NAV_LINK =
-  'thread-link-ink eyebrow whitespace-nowrap py-2 text-paper-muted hover:text-paper';
+const NAV_LINK = 'thread-link-ink eyebrow whitespace-nowrap py-2 text-paper-muted hover:text-paper';
 
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isAdmin, isLoading } = useAdminAuth();
   const router = useRouter();
 
@@ -80,9 +75,7 @@ export default function AdminLayout({
       </nav>
 
       {/* Admin Content */}
-      <main className="container-page py-6 md:py-8">
-        {children}
-      </main>
+      <main className="container-page py-6 md:py-8">{children}</main>
     </div>
   );
 }

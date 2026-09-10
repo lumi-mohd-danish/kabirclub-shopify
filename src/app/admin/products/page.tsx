@@ -106,7 +106,7 @@ export default function AdminProductsPage() {
     };
   }, [debouncedQuery, selectedCategory, page, reloadToken]);
 
-  const refresh = () => setReloadToken(token => token + 1);
+  const refresh = () => setReloadToken((token) => token + 1);
 
   const handleDeleteProduct = async (id: string, title: string) => {
     if (
@@ -124,8 +124,8 @@ export default function AdminProductsPage() {
 
       await deleteProduct(id);
 
-      setProducts(current => current.filter(p => p.id !== id));
-      setTotal(current => Math.max(0, current - 1));
+      setProducts((current) => current.filter((p) => p.id !== id));
+      setTotal((current) => Math.max(0, current - 1));
       setMessage({ type: 'success', text: `Product "${title}" deleted successfully` });
 
       // Pull the next row into the gap this delete left in the page.
@@ -156,7 +156,9 @@ export default function AdminProductsPage() {
 
       await toggleProductStatus(id, newStatus);
 
-      setProducts(current => current.map(p => (p.id === id ? { ...p, is_active: newStatus } : p)));
+      setProducts((current) =>
+        current.map((p) => (p.id === id ? { ...p, is_active: newStatus } : p))
+      );
       setMessage({
         type: 'success',
         text: `Product "${title}" ${newStatus ? 'enabled' : 'disabled'} successfully`
@@ -171,7 +173,7 @@ export default function AdminProductsPage() {
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const firstRowNumber = total === 0 ? 0 : page * PAGE_SIZE + 1;
   const lastRowNumber = page * PAGE_SIZE + products.length;
-  const disabledCount = products.filter(product => !product.is_active).length;
+  const disabledCount = products.filter((product) => !product.is_active).length;
   const hasFilters = Boolean(debouncedQuery || selectedCategory);
 
   return (
@@ -221,15 +223,18 @@ export default function AdminProductsPage() {
               className="field-ink py-2 md:w-56"
             >
               <option value="">All Categories</option>
-              {CATEGORIES.map(category => (
-                <option key={category} value={category}>{category}</option>
+              {CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
               ))}
             </select>
           </div>
         </div>
         <p className="mt-3 text-caption text-paper-muted">
           This list includes disabled products so they can be edited or switched back on.
-          {disabledCount > 0 && ` ${disabledCount} on this page ${disabledCount === 1 ? 'is' : 'are'} hidden from the storefront.`}
+          {disabledCount > 0 &&
+            ` ${disabledCount} on this page ${disabledCount === 1 ? 'is' : 'are'} hidden from the storefront.`}
         </p>
       </div>
 
@@ -262,7 +267,9 @@ export default function AdminProductsPage() {
             )}
           </div>
         ) : (
-          <div className={`overflow-x-auto transition-opacity duration-fast ease-cloth ${isLoading ? 'opacity-60' : ''}`}>
+          <div
+            className={`overflow-x-auto transition-opacity duration-fast ease-cloth ${isLoading ? 'opacity-60' : ''}`}
+          >
             <table className="w-full">
               <thead className="border-b border-ink-700 bg-ink-900">
                 <tr>
@@ -313,12 +320,12 @@ export default function AdminProductsPage() {
                             />
                           )}
                           <div>
-                            <div className={`text-body-sm font-medium ${product.is_active ? 'text-paper' : 'text-paper-muted'}`}>
+                            <div
+                              className={`text-body-sm font-medium ${product.is_active ? 'text-paper' : 'text-paper-muted'}`}
+                            >
                               {product.title}
                             </div>
-                            <div className="text-caption text-paper-muted">
-                              {product.handle}
-                            </div>
+                            <div className="text-caption text-paper-muted">{product.handle}</div>
                             {!product.is_active && (
                               <div className="mt-1 text-caption text-paper-muted">
                                 Hidden from the storefront
@@ -337,16 +344,18 @@ export default function AdminProductsPage() {
                       </td>
                       <td className="whitespace-nowrap px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className={`eyebrow inline-block rounded-control px-2 py-1 ${
-                            product.is_active
-                              ? 'bg-neem text-paper'
-                              : 'bg-madder text-paper'
-                          }`}>
+                          <span
+                            className={`eyebrow inline-block rounded-control px-2 py-1 ${
+                              product.is_active ? 'bg-neem text-paper' : 'bg-madder text-paper'
+                            }`}
+                          >
                             {product.is_active ? 'Active' : 'Disabled'}
                           </span>
                           <button
                             type="button"
-                            onClick={() => handleToggleStatus(product.id, product.is_active, product.title)}
+                            onClick={() =>
+                              handleToggleStatus(product.id, product.is_active, product.title)
+                            }
                             disabled={isPending}
                             className={`${CHIP_ACTION} ${
                               product.is_active
@@ -414,7 +423,7 @@ export default function AdminProductsPage() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setPage(current => Math.max(0, current - 1))}
+                  onClick={() => setPage((current) => Math.max(0, current - 1))}
                   disabled={page === 0 || isLoading}
                   className={BTN_GHOST_SM}
                 >
@@ -425,7 +434,7 @@ export default function AdminProductsPage() {
                 </span>
                 <button
                   type="button"
-                  onClick={() => setPage(current => Math.min(pageCount - 1, current + 1))}
+                  onClick={() => setPage((current) => Math.min(pageCount - 1, current + 1))}
                   disabled={page >= pageCount - 1 || isLoading}
                   className={BTN_GHOST_SM}
                 >

@@ -2,64 +2,50 @@
 
 import Link from 'next/link';
 
-// data
-import clothingImages from '@/data/clothing-images.json';
-import clsx from 'clsx';
-import Image from 'next/image';
+import type { NavItem } from './Menu';
 
-// types
-const images: Record<string, Array<{ title: string; image: string; url: string }>> = {};
-
-images['clothing'] = clothingImages;
-
-const SubMenu = ({
+/**
+ * The panel behind a top-level nav group.
+ *
+ * It stays in the DOM and is hidden with the `hidden` attribute rather than
+ * being conditionally rendered: the links are then present in the server HTML
+ * for crawlers, and `display: none` still keeps them out of the tab order and
+ * off the accessibility tree. Nothing here sets a `display` utility, which is
+ * what lets the attribute win.
+ *
+ * Semantically it is a `<ul>` inside the parent `<nav>`'s `<li>` — a real
+ * submenu — not a second `<nav>` landmark.
+ */
+export default function SubMenu({
+  id,
   items,
-  parent
+  isHidden,
+  onNavigate
 }: {
-  items: { title: string; path: string }[];
-  parent: string;
-}) => {
+  id: string;
+  items: NavItem[];
+  isHidden: boolean;
+  onNavigate?: () => void;
+}) {
   return (
-    <div
-      className="pointer-events-none absolute left-0 right-0 top-[79px] z-40 flex items-center justify-center border-t border-purple bg-white/70 py-[24px] opacity-0 backdrop-blur-lg transition-all duration-500"
-      // border-b border-purple
-    >
-      <div className="flex w-full max-w-[670px] items-stretch justify-between">
-        <nav className="flex flex-col items-start justify-start gap-6">
-          <h3 className="sr-only">{parent} Sub Menu</h3>
-          {items.map((item, i) => (
-            <Link href={item.path} key={i} className="hover-line">
-              {item.title}
-            </Link>
+    <div id={id} hidden={isHidden} className="absolute left-0 top-full z-30 pt-3">
+      <div className="w-56 border border-ink-700 bg-ink-900 shadow-overlay">
+        {/* The woven thread across the top edge, tying the panel to the band. */}
+        <div className="rule-zari" />
+        <ul className="py-2">
+          {items.map((item) => (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                onClick={onNavigate}
+                className="block px-4 py-2.5 text-body-sm text-paper-muted transition-colors duration-fast ease-cloth hover:bg-ink-800 hover:text-paper"
+              >
+                {item.title}
+              </Link>
+            </li>
           ))}
-        </nav>
-        <div className="flex items-center justify-center gap-4">
-          {images[parent.toLowerCase()]?.slice(0, 2).map((imageItem, i) => (
-            <Link
-              href={imageItem.url}
-              key={i}
-              title={imageItem.title}
-              className={clsx(
-                'transition-all hover:[&_img]:scale-110',
-                i === 0 ? 'animate-fadeUp' : 'animate-fadeUpDelay'
-              )}
-              style={{ opacity: 0 }}
-            >
-              <div className="relative aspect-[7/10] h-[200px] overflow-hidden rounded-[8px]">
-                <Image
-                  src={imageItem.image}
-                  alt={imageItem.title}
-                  fill
-                  className="object-cover transition-all duration-300 will-change-transform"
-                  sizes="140px"
-                />
-              </div>
-            </Link>
-          ))}
-        </div>
+        </ul>
       </div>
     </div>
   );
-};
-
-export default SubMenu;
+}

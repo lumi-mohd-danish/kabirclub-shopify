@@ -56,7 +56,10 @@ export const SITE_FAVICON = '/favicon.png';
 
 export const SITE_MANIFEST = '/manifest.json';
 
-export const SITE_THEME_COLOR = '#daa520';
+// The colour the mobile browser paints its own chrome with. It should match
+// the band the header sits in, which under Ink & Zari is ink-900 — not the
+// gold accent, which would frame a near-black header in brass.
+export const SITE_THEME_COLOR = '#171310';
 
 export const SITE_BACKGROUND_COLOR = '#ffffff';
 

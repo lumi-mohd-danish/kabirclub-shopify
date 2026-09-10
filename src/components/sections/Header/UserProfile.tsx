@@ -3,12 +3,29 @@
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useAuth } from '@/hooks/useAuth';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
+/**
+ * The only auth-dependent element in the header, isolated so the rest of the
+ * chrome can be server-rendered. There is deliberately no skeleton pulse here:
+ * while the session resolves we show the signed-out control, which is correct
+ * for most visitors, reserves exactly the same space as the avatar, and stays
+ * keyboard-reachable throughout. A grey block that resolves after two effect
+ * ticks was the reason every page shipped a placeholder where its chrome
+ * should be.
+ */
 export default function UserProfile() {
   const { user, logout, isAuthenticated, isLoading, refreshAuth } = useAuth();
   const { isAdmin } = useAdminAuth();
   const [showDropdown, setShowDropdown] = useState(false);
+  const menuId = useId();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  const closeDropdown = useCallback((returnFocus = false) => {
+    setShowDropdown(false);
+    if (returnFocus) triggerRef.current?.focus();
+  }, []);
 
   // Close dropdown when user logs out and handle state changes
   useEffect(() => {
@@ -25,153 +42,201 @@ export default function UserProfile() {
 
     if (typeof window !== 'undefined') {
       window.addEventListener('userLogin', handleLoginEvent);
-      
+
       return () => {
         window.removeEventListener('userLogin', handleLoginEvent);
       };
     }
   }, [refreshAuth]);
 
-  // Handle escape key to close dropdown
+  // Escape closes and hands focus back to the trigger; a press outside just
+  // closes. The old full-screen click-catcher is gone — it swallowed the first
+  // click on everything else on the page.
   useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setShowDropdown(false);
-      }
+    if (!showDropdown) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeDropdown(true);
     };
 
-    if (showDropdown) {
-      document.addEventListener('keydown', handleEscape);
-    }
+    const handlePointerDown = (event: Event) => {
+      if (!containerRef.current?.contains(event.target as Node)) closeDropdown();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('pointerdown', handlePointerDown);
 
     return () => {
-      document.removeEventListener('keydown', handleEscape);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('pointerdown', handlePointerDown);
     };
-  }, [showDropdown]);
+  }, [showDropdown, closeDropdown]);
 
   const handleLogout = () => {
     logout();
     setShowDropdown(false);
   };
 
-  // Show loading state
-  if (isLoading) {
+  if (isLoading || !isAuthenticated()) {
     return (
-      <div className="flex items-center">
-        <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-800 animate-pulse"></div>
-      </div>
-    );
-  }
-
-  // Show login button for non-authenticated users
-  if (!isAuthenticated()) {
-    return (
-      <div className="flex items-center">
-        <Link
-          href="/login"
-          className="flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-800 hover:bg-[#daa520] transition-all duration-300 group"
-          title="Login"
-        >
-          <svg 
-            className="w-4 h-4 md:w-5 md:h-5 text-gray-300 group-hover:text-black transition-colors duration-300" 
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path 
-              strokeLinecap="round" 
-              strokeLinejoin="round" 
-              strokeWidth={2} 
-              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" 
-            />
-          </svg>
-        </Link>
-      </div>
+      <Link
+        href="/login"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-pill border border-ink-700 text-paper-muted transition-colors duration-fast ease-cloth hover:border-zari-500/35 hover:text-paper"
+      >
+        <AccountIcon />
+        <span className="sr-only">Sign in</span>
+      </Link>
     );
   }
 
   return (
-    <div className="relative">
+    <div ref={containerRef} className="relative">
       <button
-        onClick={() => setShowDropdown(!showDropdown)}
-        className="flex items-center gap-2 text-white hover:text-[#daa520] transition-colors duration-200"
-        title={`${user?.name || 'User'} - Click to open menu`}
+        ref={triggerRef}
+        type="button"
+        aria-expanded={showDropdown}
+        aria-controls={menuId}
+        onClick={() => setShowDropdown((open) => !open)}
+        className="inline-flex items-center gap-2 text-paper-muted transition-colors duration-fast ease-cloth hover:text-paper"
       >
-        <div className="w-6 h-6 bg-[#daa520] rounded-full flex items-center justify-center text-black font-bold text-xs">
+        {/*
+          The cart badge is already this view's one filled gold element, so the
+          avatar takes the thread treatment instead: an ink well with a zari
+          hairline and zari-500 type (8.5:1 on ink-800).
+        */}
+        <span
+          aria-hidden="true"
+          className="flex h-10 w-10 items-center justify-center rounded-pill border border-zari-500/35 bg-ink-800 text-caption font-medium text-zari-500"
+        >
           {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-        </div>
-        {/* Optional: Show user name on larger screens */}
-        <span className="text-sm font-medium hidden lg:block text-gray-300 group-hover:text-[#daa520] transition-colors duration-200">
-          {user?.name || 'User'}
         </span>
+        <span className="hidden max-w-[10ch] truncate text-body-sm lg:block">
+          {user?.name || 'Account'}
+        </span>
+        <span className="sr-only">Account menu</span>
       </button>
 
-      {/* Dropdown Menu */}
-      {showDropdown && (
-        <div className="absolute right-0 mt-2 w-48 bg-gray-900 border border-gray-800 rounded-lg shadow-2xl z-50">
-          <div className="py-2">
-            <div className="px-4 py-2 border-b border-gray-800">
-              <p className="text-white text-sm font-medium">{user?.name}</p>
-              <p className="text-gray-400 text-xs">{user?.email}</p>
-            </div>
-            
-            <Link
-              href="/profile"
-              className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-[#daa520] transition-colors duration-200 flex items-center space-x-2"
-              onClick={() => setShowDropdown(false)}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-              <span>My Profile</span>
-            </Link>
-            
-            <Link
-              href="/orders"
-              className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-[#daa520] transition-colors duration-200 flex items-center space-x-2"
-              onClick={() => setShowDropdown(false)}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <span>My Orders</span>
-            </Link>
-            
+      <div id={menuId} hidden={!showDropdown} className="absolute right-0 top-full z-30 pt-3">
+        <div className="w-56 border border-ink-700 bg-ink-900 shadow-overlay">
+          <div className="rule-zari" />
+
+          <div className="border-b border-ink-700 px-4 py-3">
+            <p className="truncate text-body-sm font-medium text-paper">{user?.name}</p>
+            <p className="truncate text-caption text-paper-muted">{user?.email}</p>
+          </div>
+
+          <ul className="py-2">
+            <li>
+              <AccountMenuLink href="/profile" onNavigate={() => setShowDropdown(false)}>
+                <AccountIcon className="h-4 w-4" />
+                My profile
+              </AccountMenuLink>
+            </li>
+            <li>
+              <AccountMenuLink href="/orders" onNavigate={() => setShowDropdown(false)}>
+                <svg
+                  aria-hidden="true"
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2Z" />
+                </svg>
+                My orders
+              </AccountMenuLink>
+            </li>
             {/* Admin Panel Link - Only show for admin users */}
             {isAdmin() && (
-              <Link
-                href="/admin"
-                className="block px-4 py-3 text-sm text-gray-300 hover:bg-gray-800 hover:text-[#daa520] transition-colors duration-200 flex items-center space-x-2"
-                onClick={() => setShowDropdown(false)}
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span>Admin Panel</span>
-              </Link>
+              <li>
+                <AccountMenuLink href="/admin" onNavigate={() => setShowDropdown(false)}>
+                  <svg
+                    aria-hidden="true"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={1.75}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    viewBox="0 0 24 24"
+                  >
+                    <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065Z" />
+                    <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                  </svg>
+                  Admin panel
+                </AccountMenuLink>
+              </li>
             )}
-            
+          </ul>
+
+          {/*
+            Log out is neutral, not red: `madder` is 2.5:1 on ink-900 and the
+            palette has no destructive tone that survives a dark ground. The
+            separator and its position carry the distinction instead.
+          */}
+          <div className="border-t border-ink-700 py-2">
             <button
+              type="button"
               onClick={handleLogout}
-              className="block w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-gray-800 hover:text-red-300 transition-colors duration-200 flex items-center space-x-2"
+              className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-body-sm text-paper-muted transition-colors duration-fast ease-cloth hover:bg-ink-800 hover:text-paper"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              <svg
+                aria-hidden="true"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.75}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                viewBox="0 0 24 24"
+              >
+                <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h4a3 3 0 0 1 3 3v1" />
               </svg>
-              <span>Logout</span>
+              Log out
             </button>
           </div>
         </div>
-      )}
-
-      {/* Click outside to close dropdown */}
-      {showDropdown && (
-        <div
-          className="fixed inset-0 z-40"
-          onClick={() => setShowDropdown(false)}
-        />
-      )}
+      </div>
     </div>
+  );
+}
+
+function AccountMenuLink({
+  href,
+  onNavigate,
+  children
+}: {
+  href: string;
+  onNavigate: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      className="flex items-center gap-3 px-4 py-2.5 text-body-sm text-paper-muted transition-colors duration-fast ease-cloth hover:bg-ink-800 hover:text-paper"
+    >
+      {children}
+    </Link>
+  );
+}
+
+function AccountIcon({ className = 'h-6 w-6' }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      viewBox="0 0 24 24"
+    >
+      <path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM12 14a7 7 0 0 0-7 7h14a7 7 0 0 0-7-7Z" />
+    </svg>
   );
 }

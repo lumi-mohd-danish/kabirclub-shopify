@@ -20,7 +20,7 @@ export default function NewCollectionPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -30,22 +30,23 @@ export default function NewCollectionPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    
+
     if (name === 'title' && !formData.handle) {
       // Auto-generate handle from title
-      const autoHandle = value.toLowerCase()
+      const autoHandle = value
+        .toLowerCase()
         .replace(/[^a-z0-9\s-]/g, '')
         .replace(/\s+/g, '-')
         .replace(/-+/g, '-')
         .trim();
-      
-      setFormData(prev => ({
+
+      setFormData((prev) => ({
         ...prev,
         [name]: value,
         handle: autoHandle
       }));
     } else {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         [name]: value
       }));
@@ -54,7 +55,7 @@ export default function NewCollectionPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
       requireAdmin();
       setIsLoading(true);
@@ -73,7 +74,7 @@ export default function NewCollectionPage() {
       };
 
       await createCollection(collectionData);
-      
+
       setMessage({
         type: 'success',
         text: 'Collection created successfully!'
@@ -83,7 +84,6 @@ export default function NewCollectionPage() {
       setTimeout(() => {
         router.push('/admin/collections');
       }, 1500);
-
     } catch (error: any) {
       console.error('Error creating collection:', error);
       setMessage({
@@ -121,7 +121,10 @@ export default function NewCollectionPage() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-5 border border-ink-700 bg-ink-800 p-4 md:p-6">
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-5 border border-ink-700 bg-ink-800 p-4 md:p-6"
+      >
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <div>
             <label htmlFor="title" className={LABEL}>
@@ -153,9 +156,7 @@ export default function NewCollectionPage() {
               className="field-ink py-2"
               placeholder="collection-url-handle"
             />
-            <p className={HINT}>
-              URL-friendly identifier (auto-generated from title)
-            </p>
+            <p className={HINT}>URL-friendly identifier (auto-generated from title)</p>
           </div>
         </div>
 
@@ -191,14 +192,10 @@ export default function NewCollectionPage() {
 
         {/* Submit Button */}
         <div className="flex flex-wrap gap-3 border-t border-ink-700 pt-5">
-          <button
-            type="submit"
-            disabled={isLoading}
-            className={BTN_GOLD}
-          >
+          <button type="submit" disabled={isLoading} className={BTN_GOLD}>
             {isLoading ? 'Creating...' : 'Create Collection'}
           </button>
-          
+
           <Link href="/admin/collections" className={BTN_GHOST}>
             Cancel
           </Link>

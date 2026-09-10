@@ -22,10 +22,10 @@ const DROPZONE =
 const DROPZONE_IDLE = 'border-ink-faint bg-transparent hover:border-paper-muted';
 const DROPZONE_ACTIVE = 'border-zari-500 bg-ink-700';
 
-export default function ImageUpload({ 
-  onImageUploaded: onImageUploadedProp, 
-  onError: onErrorProp, 
-  className = '', 
+export default function ImageUpload({
+  onImageUploaded: onImageUploadedProp,
+  onError: onErrorProp,
+  className = '',
   maxImages = 1,
   currentImages = []
 }: ImageUploadProps) {
@@ -35,60 +35,64 @@ export default function ImageUpload({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
-  const handleFiles = useCallback(async (files: FileList) => {
-    if (currentImages.length >= maxImages) {
-      onErrorProp?.(`Maximum ${maxImages} images allowed`);
-      return;
-    }
-
-    const remainingSlots = maxImages - currentImages.length;
-    const filesToUpload = Array.from(files).slice(0, remainingSlots);
-
-    for (const file of filesToUpload) {
-      const validation = validateImageFile(file);
-      if (!validation.isValid) {
-        onErrorProp?.(validation.error || 'Invalid image file');
-        continue;
+  const handleFiles = useCallback(
+    async (files: FileList) => {
+      if (currentImages.length >= maxImages) {
+        onErrorProp?.(`Maximum ${maxImages} images allowed`);
+        return;
       }
 
-      try {
-        setIsUploading(true);
-        setUploadProgress(0);
-        
-        // Create abort controller for this upload
-        controllerRef.current = new AbortController();
+      const remainingSlots = maxImages - currentImages.length;
+      const filesToUpload = Array.from(files).slice(0, remainingSlots);
 
-        // Compress image if it's too large
-        const processedFile = file.size > 2 * 1024 * 1024 
-          ? await compressImage(file, 1920, 0.8)
-          : file;
-
-        // Upload image
-        const result = await uploadImageFile(processedFile, controllerRef.current);
-        
-        onImageUploadedProp(result.url);
-        setUploadProgress(100);
-        
-      } catch (error: any) {
-        if (error.name !== 'AbortError') {
-          onErrorProp?.(error.message || 'Failed to upload image');
+      for (const file of filesToUpload) {
+        const validation = validateImageFile(file);
+        if (!validation.isValid) {
+          onErrorProp?.(validation.error || 'Invalid image file');
+          continue;
         }
-      } finally {
-        setIsUploading(false);
-        setUploadProgress(0);
-        controllerRef.current = null;
-      }
-    }
-  }, [currentImages.length, maxImages, onImageUploadedProp, onErrorProp]);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFiles(e.dataTransfer.files);
-    }
-  }, [handleFiles]);
+        try {
+          setIsUploading(true);
+          setUploadProgress(0);
+
+          // Create abort controller for this upload
+          controllerRef.current = new AbortController();
+
+          // Compress image if it's too large
+          const processedFile =
+            file.size > 2 * 1024 * 1024 ? await compressImage(file, 1920, 0.8) : file;
+
+          // Upload image
+          const result = await uploadImageFile(processedFile, controllerRef.current);
+
+          onImageUploadedProp(result.url);
+          setUploadProgress(100);
+        } catch (error: any) {
+          if (error.name !== 'AbortError') {
+            onErrorProp?.(error.message || 'Failed to upload image');
+          }
+        } finally {
+          setIsUploading(false);
+          setUploadProgress(0);
+          controllerRef.current = null;
+        }
+      }
+    },
+    [currentImages.length, maxImages, onImageUploadedProp, onErrorProp]
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragActive(false);
+
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleFiles(e.dataTransfer.files);
+      }
+    },
+    [handleFiles]
+  );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -100,11 +104,14 @@ export default function ImageUpload({
     setDragActive(false);
   }, []);
 
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      handleFiles(e.target.files);
-    }
-  }, [handleFiles]);
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files.length > 0) {
+        handleFiles(e.target.files);
+      }
+    },
+    [handleFiles]
+  );
 
   const cancelUpload = () => {
     if (controllerRef.current) {
@@ -146,15 +153,26 @@ export default function ImageUpload({
             <div className="space-y-4">
               <div className="mx-auto h-8 w-8 text-zari-500">
                 <svg className="animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
                 </svg>
               </div>
               <div>
                 <p className="text-body-sm text-paper">Uploading image...</p>
                 {uploadProgress > 0 && (
                   <div className="mt-2 h-1 w-full bg-ink-700">
-                    <div 
+                    <div
                       className="h-1 bg-zari-500 transition-[width] duration-fast ease-cloth"
                       style={{ width: `${uploadProgress}%` }}
                     ></div>
@@ -176,7 +194,12 @@ export default function ImageUpload({
             <div className="space-y-3">
               <div className="mx-auto h-8 w-8 text-paper-muted">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                  />
                 </svg>
               </div>
               <div>
