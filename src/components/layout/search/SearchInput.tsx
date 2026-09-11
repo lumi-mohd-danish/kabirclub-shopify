@@ -1,65 +1,127 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
-export default function SearchInput() {
+/**
+ * The catalogue's in-page search field.
+ *
+ * It is a real `<form role="search">` with a real `<label>` and a real submit
+ * button, so it works from the keyboard and from a screen reader the same way
+ * the header's search does — the debounce is an enhancement on top, not the
+ * only way to run a query.
+ *
+ * WHAT IT KEEPS AND WHAT IT DROPS. Sort and size are carried over, because they
+ * are how the shopper asked to see things. `page` is dropped: results for a new
+ * query have their own page 1, and keeping `page=4` was landing people on an
+ * empty grid. On a collection route the category is carried as `?category=`, so
+ * searching from inside a collection searches THAT collection rather than
+ * silently widening to the whole catalogue.
+ */
+
+const DEBOUNCE_MS = 300;
+
+export default function SearchInput({
+  /** Collection handle to keep as `?category=` when the route owns the category. */
+  category
+}: {
+  category?: string;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [query, setQuery] = useState(searchParams.get('q') || '');
+  const inputId = useId();
+  const initialQuery = searchParams.get('q') ?? '';
+  const [query, setQuery] = useState(initialQuery);
   const timeoutRef = useRef<NodeJS.Timeout>();
 
-  const debouncedSearch = useCallback(
+  // The URL is the source of truth: a Back navigation, or a cleared search
+  // chip, has to be reflected in the field rather than leaving stale text in it.
+  useEffect(() => {
+    setQuery(initialQuery);
+  }, [initialQuery]);
+
+  useEffect(() => () => clearTimeout(timeoutRef.current), []);
+
+  const hrefFor = useCallback(
     (value: string) => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
+      const params = new URLSearchParams(searchParams.toString());
+
+      if (value) {
+        params.set('q', value);
+      } else {
+        params.delete('q');
       }
 
-      timeoutRef.current = setTimeout(() => {
-        const params = new URLSearchParams(searchParams.toString());
-        if (value) {
-          params.set('q', value);
-        } else {
-          params.delete('q');
-        }
-        router.push(`/search?${params.toString()}`);
-      }, 300);
+      if (category) {
+        params.set('category', category);
+      }
+
+      params.delete('page');
+
+      const queryString = params.toString();
+
+      return queryString ? `/search?${queryString}` : '/search';
     },
-    [searchParams, router]
+    [searchParams, category]
+  );
+
+  const navigate = useCallback(
+    (value: string) => {
+      clearTimeout(timeoutRef.current);
+      router.push(hrefFor(value));
+    },
+    [router, hrefFor]
   );
 
   const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+
       setQuery(value);
-      debouncedSearch(value);
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => navigate(value.trim()), DEBOUNCE_MS);
     },
-    [debouncedSearch]
+    [navigate]
   );
 
   return (
-    <div className="relative">
+    <form
+      role="search"
+      className="relative"
+      onSubmit={(event) => {
+        event.preventDefault();
+        navigate(query.trim());
+      }}
+    >
+      <label htmlFor={inputId} className="sr-only">
+        Search products
+      </label>
+
       {/*
         `.field` is the paper form recipe: 16px type (below that iOS zooms the
         page on focus), `rounded-control`, an `ink-faint` hairline that clears
         WCAG 1.4.11's 3:1 for a control boundary, and a `zari-700` focus
         border. It deliberately leaves `outline` alone so the shared
         focus-visible ring in globals.css still lands. `pr-12` keeps the type
-        clear of the magnifier.
-
-        The placeholder was the only label this control had; an `aria-label`
-        gives it a real accessible name that survives typing.
+        clear of the submit button.
       */}
       <input
+        id={inputId}
+        name="q"
         type="search"
         value={query}
         onChange={handleChange}
-        aria-label="Search products"
+        autoComplete="off"
         placeholder="Search products..."
         className="field pr-12"
       />
-      <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-zari-700">
+
+      <button
+        type="submit"
+        className="absolute inset-y-0 right-0 inline-flex w-12 items-center justify-center rounded-control text-zari-700 transition-colors duration-fast ease-cloth hover:text-ink"
+      >
         <svg
+          aria-hidden="true"
           xmlns="http://www.w3.org/2000/svg"
           className="h-5 w-5"
           viewBox="0 0 20 20"
@@ -71,7 +133,8 @@ export default function SearchInput() {
             clipRule="evenodd"
           />
         </svg>
-      </div>
-    </div>
+        <span className="sr-only">Search</span>
+      </button>
+    </form>
   );
 }

@@ -6,9 +6,9 @@ import 'swiper/css';
 import 'swiper/css/navigation';
 import { A11y, Navigation } from 'swiper/modules';
 import { Swiper, SwiperClass, SwiperSlide } from 'swiper/react';
+import ProductCard from '@/components/layout/ProductCard';
 import { useMediaQuery } from '../../../hooks/useMediaQuery';
 import { Product } from '../../../lib/supabase/types';
-import ProductCard from '../../product/ProductCard';
 
 interface ProductListProps {
   products?: Product[];
@@ -27,6 +27,17 @@ const ProductSkeleton = () => (
     </div>
   </div>
 );
+
+/**
+ * 2-up grid below 768px, fixed 280px slides above it — this row swaps layout at
+ * the same breakpoint `useMediaQuery` does, so the hint never describes the
+ * layout the visitor is not looking at.
+ */
+const NEW_ARRIVALS_CARD_SIZES = '(max-width: 768px) 48vw, 280px';
+
+/** 40ms a plate, capped at the seventh — the reveal the whole app staggers with. */
+const STAGGER_STEP_SECONDS = 0.04;
+const MAX_STAGGER_STEPS = 6;
 
 const ProductList = ({ products = [] }: ProductListProps) => {
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -50,9 +61,17 @@ const ProductList = ({ products = [] }: ProductListProps) => {
         // Tight horizontal gutters, generous vertical ones: that asymmetry is
         // what makes a catalogue read as editorial rather than as a table.
         <div className="grid w-full grid-cols-2 gap-x-4 gap-y-10">
-          {products.slice(0, 4).map((product) => (
-            <div key={product.id}>
-              {product && product.id ? <ProductCard product={product} /> : <ProductSkeleton />}
+          {products.slice(0, 4).map((product, index) => (
+            <div key={product.id ?? index}>
+              {product && product.id ? (
+                <ProductCard
+                  product={product}
+                  sizes={NEW_ARRIVALS_CARD_SIZES}
+                  delay={Math.min(index, MAX_STAGGER_STEPS) * STAGGER_STEP_SECONDS}
+                />
+              ) : (
+                <ProductSkeleton />
+              )}
             </div>
           ))}
         </div>
@@ -108,11 +127,17 @@ const ProductList = ({ products = [] }: ProductListProps) => {
             setIsStart(s.isBeginning);
           }}
         >
-          {products.map((product) => (
-            <SwiperSlide key={product.id} className="!w-[180px] sm:!w-[280px]">
-              <div key={product.id}>
-                {product && product.id ? <ProductCard product={product} /> : <ProductSkeleton />}
-              </div>
+          {products.map((product, index) => (
+            <SwiperSlide key={product.id ?? index} className="!w-[180px] sm:!w-[280px]">
+              {product && product.id ? (
+                <ProductCard
+                  product={product}
+                  sizes={NEW_ARRIVALS_CARD_SIZES}
+                  delay={Math.min(index, MAX_STAGGER_STEPS) * STAGGER_STEP_SECONDS}
+                />
+              ) : (
+                <ProductSkeleton />
+              )}
             </SwiperSlide>
           ))}
         </Swiper>

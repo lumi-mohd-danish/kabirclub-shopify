@@ -1,5 +1,14 @@
-import { CartItem, Collection, Product, isSupabaseConfigured, supabase } from '../supabase';
+import {
+  CartItem,
+  Collection,
+  Product,
+  isSupabaseConfigured,
+  supabase,
+  type SupabaseDbClient
+} from '../supabase';
 import type { Cart, CartLine, Order, Page, ShippingAddress } from './types';
+
+export type { SupabaseDbClient };
 
 // ---------------------------------------------------------------------------
 // Commercial rules
@@ -98,12 +107,26 @@ export interface GetProductsOptions {
   includeInactive?: boolean;
 }
 
+/**
+ * One line of a checkout request.
+ *
+ * NOTHING ON THIS OBJECT SETS A PRICE. `placeOrder` re-reads every unit price
+ * from the `products` table by `product_id`, so a caller can only choose *what*
+ * and *how many* — never *how much*.
+ */
 export interface PlaceOrderItemInput {
-  product: Product;
+  /** The product's primary key. This is the only identity `placeOrder` trusts. */
+  productId?: string;
+  /**
+   * Legacy call shape: a whole product object. Only `product.id` is read, and
+   * only when `productId` is absent. Its `price` is ignored like every other
+   * amount the caller sends. Prefer `productId`.
+   */
+  product?: Product;
   quantity: number;
   /** Size the shopper selected. Defaults to 'M' when absent. */
   size?: string;
-  /** Ignored when present: line totals are always recomputed from price x quantity. */
+  /** Ignored. Line totals are always recomputed from the database price x quantity. */
   totalPrice?: number;
   /**
    * The `cart_items.id` this line came from. Supplied so checkout clears only
@@ -213,6 +236,22 @@ const fallbackCollections: Collection[] = [
 
 /** True when a real Supabase project is configured; false means "serve fallback data". */
 const checkSupabase = (): boolean => isSupabaseConfigured();
+
+/**
+ * Pick the client a cart or order call should talk to.
+ *
+ * Every cart/order function takes an optional client so a server action can hand
+ * in a session-scoped one (`createSessionClient`, which carries the
+ * `x-session-id` header the RLS policies read). Callers that pass nothing keep
+ * the module-level singleton and behave exactly as before.
+ *
+ * Returns `null` when Supabase is unconfigured, so callers keep their existing
+ * "no client, serve fallback" branch.
+ */
+const resolveClient = (client?: SupabaseDbClient | null): SupabaseDbClient | null => {
+  if (!checkSupabase()) return null;
+  return client ?? supabase;
+};
 
 /** Round to 2 decimals so no raw float (243.07999999999998) ever leaves this module. */
 const roundMoney = (value: number): number => {
@@ -652,12 +691,17 @@ export async function getCollectionProducts({
 // Cart API
 // ---------------------------------------------------------------------------
 
-export async function getCart(sessionId: string): Promise<CartWithSizes | null> {
-  if (!checkSupabase() || !sessionId) {
+export async function getCart(
+  sessionId: string,
+  client?: SupabaseDbClient | null
+): Promise<CartWithSizes | null> {
+  const db = resolveClient(client);
+
+  if (!db || !sessionId) {
     return null;
   }
 
-  const { data, error } = await supabase!
+  const { data, error } = await db
     .from('cart_items')
     .select(
       `
@@ -683,21 +727,29 @@ export async function getCart(sessionId: string): Promise<CartWithSizes | null> 
  * `cart_items.size` (see `add-cart-item-size.sql`); if that migration has not
  * been run yet the insert transparently retries without the column so the cart
  * keeps working.
+ *
+ * `client` lets a server action pass a session-scoped client so the write also
+ * satisfies the `x-session-id` row-level security policies.
  */
-export async function addToCart({
-  productId,
-  quantity,
-  size,
-  sessionId,
-  userId
-}: {
-  productId: string;
-  quantity: number;
-  size: string;
-  sessionId: string;
-  userId?: string;
-}): Promise<CartItemWithSize | null> {
-  if (!checkSupabase() || !productId || !sessionId) {
+export async function addToCart(
+  {
+    productId,
+    quantity,
+    size,
+    sessionId,
+    userId
+  }: {
+    productId: string;
+    quantity: number;
+    size: string;
+    sessionId: string;
+    userId?: string;
+  },
+  client?: SupabaseDbClient | null
+): Promise<CartItemWithSize | null> {
+  const db = resolveClient(client);
+
+  if (!db || !productId || !sessionId) {
     return null;
   }
 
@@ -707,7 +759,7 @@ export async function addToCart({
   // Fetch every line for this product/session and match the size in JS. Doing
   // the size match here (rather than as a `.eq('size', ...)` filter) keeps the
   // query valid on databases where the column has not been added yet.
-  const { data: existingItems, error: selectError } = await supabase!
+  const { data: existingItems, error: selectError } = await db
     .from('cart_items')
     .select('*')
     .eq('product_id', productId)
@@ -722,7 +774,7 @@ export async function addToCart({
   const existingItem = rows.find(row => (sizeColumnPresent ? sameSize(row.size, resolvedSize) : true)) ?? null;
 
   if (existingItem) {
-    const { data, error } = await supabase!
+    const { data, error } = await db
       .from('cart_items')
       .update({
         quantity: Math.min(
@@ -748,7 +800,7 @@ export async function addToCart({
     user_id: userId ?? null
   };
 
-  const withSize = await supabase!
+  const withSize = await db
     .from('cart_items')
     .insert({ ...basePayload, size: resolvedSize })
     .select()
@@ -762,7 +814,7 @@ export async function addToCart({
     return null;
   }
 
-  const withoutSize = await supabase!.from('cart_items').insert(basePayload).select().single();
+  const withoutSize = await db.from('cart_items').insert(basePayload).select().single();
 
   if (withoutSize.error) {
     return null;
@@ -777,20 +829,27 @@ export async function addToCart({
  * different size (ignored when the `cart_items.size` migration has not been run).
  *
  * `sessionId` scopes the write to the caller's own cart. Without it, knowing a
- * line UUID would be enough to edit another shopper's cart.
+ * line UUID would be enough to edit another shopper's cart. `client` lets a
+ * server action pass a session-scoped client so Postgres enforces the same
+ * scoping through RLS.
  */
-export async function updateCartItem({
-  itemId,
-  quantity,
-  size,
-  sessionId
-}: {
-  itemId: string;
-  quantity: number;
-  size?: string;
-  sessionId?: string;
-}): Promise<CartItemWithSize | null> {
-  if (!checkSupabase() || !itemId) {
+export async function updateCartItem(
+  {
+    itemId,
+    quantity,
+    size,
+    sessionId
+  }: {
+    itemId: string;
+    quantity: number;
+    size?: string;
+    sessionId?: string;
+  },
+  client?: SupabaseDbClient | null
+): Promise<CartItemWithSize | null> {
+  const db = resolveClient(client);
+
+  if (!db || !itemId) {
     return null;
   }
 
@@ -798,7 +857,7 @@ export async function updateCartItem({
   const resolvedSize = normaliseSize(size);
 
   if (resolvedSize) {
-    const withSize = await supabase!
+    const withSize = await db
       .from('cart_items')
       .update({ quantity: resolvedQuantity, size: resolvedSize })
       .eq('id', itemId)
@@ -815,7 +874,7 @@ export async function updateCartItem({
     }
   }
 
-  const { data, error } = await supabase!
+  const { data, error } = await db
     .from('cart_items')
     .update({ quantity: resolvedQuantity })
     .eq('id', itemId)
@@ -834,12 +893,18 @@ export async function updateCartItem({
  * Delete a cart line. `sessionId` scopes the delete to the caller's own cart —
  * without it, a known line UUID would be enough to empty someone else's cart.
  */
-export async function removeFromCart(itemId: string, sessionId?: string): Promise<boolean> {
-  if (!checkSupabase() || !itemId) {
+export async function removeFromCart(
+  itemId: string,
+  sessionId?: string,
+  client?: SupabaseDbClient | null
+): Promise<boolean> {
+  const db = resolveClient(client);
+
+  if (!db || !itemId) {
     return false;
   }
 
-  const { error } = await supabase!
+  const { error } = await db
     .from('cart_items')
     .delete()
     .eq('id', itemId)
@@ -848,12 +913,17 @@ export async function removeFromCart(itemId: string, sessionId?: string): Promis
   return !error;
 }
 
-export async function clearCart(sessionId: string): Promise<boolean> {
-  if (!checkSupabase() || !sessionId) {
+export async function clearCart(
+  sessionId: string,
+  client?: SupabaseDbClient | null
+): Promise<boolean> {
+  const db = resolveClient(client);
+
+  if (!db || !sessionId) {
     return false;
   }
 
-  const { error } = await supabase!.from('cart_items').delete().eq('session_id', sessionId);
+  const { error } = await db.from('cart_items').delete().eq('session_id', sessionId);
 
   return !error;
 }
@@ -893,8 +963,74 @@ export async function getMenu(): Promise<MenuItem[]> {
 // Orders API
 // ---------------------------------------------------------------------------
 
-export async function placeOrder(orderData: PlaceOrderInput): Promise<PlacedOrderRow> {
-  if (!checkSupabase()) {
+/** The only columns `placeOrder` needs when it re-prices a checkout request. */
+interface PricedProductRow {
+  id: string;
+  price: number | string | null;
+  is_active?: boolean | null;
+}
+
+/**
+ * Read the authoritative unit price of every product in a checkout request,
+ * straight from the `products` table.
+ *
+ * Products that do not exist, are withdrawn (`is_active = false`) or carry an
+ * unusable price are simply left out of the map, so the caller sees them as
+ * "not purchasable" rather than as free.
+ */
+async function readProductPrices(
+  db: SupabaseDbClient,
+  productIds: readonly string[]
+): Promise<Map<string, number>> {
+  const prices = new Map<string, number>();
+
+  if (productIds.length === 0) {
+    return prices;
+  }
+
+  const { data, error } = await db
+    .from('products')
+    .select('id, price, is_active')
+    .in('id', [...productIds]);
+
+  if (error) {
+    throw new Error(`Error pricing order: ${error.message}`);
+  }
+
+  for (const row of ((data as PricedProductRow[] | null) ?? [])) {
+    if (!row?.id) continue;
+    if (row.is_active === false) continue;
+
+    const price = Number(row.price);
+    if (!Number.isFinite(price) || price < 0) continue;
+
+    prices.set(String(row.id), roundMoney(price));
+  }
+
+  return prices;
+}
+
+/**
+ * Place an order.
+ *
+ * THE MONEY IS COMPUTED HERE, FROM THE DATABASE. The caller says *which*
+ * product, *how many* and *which size*; it does not get a say in the price.
+ * Every unit price is re-read from `products` by `product_id` and every amount
+ * the caller sent (`totalPrice`, `product.price`) is discarded, so a tampered
+ * client cannot write itself a ₹1 order.
+ *
+ * This function is safe to call from a server action: it touches no
+ * browser-only API, takes its session id as an argument rather than reading a
+ * cookie, and accepts the session-scoped client that satisfies the
+ * `x-session-id` row-level security policies.
+ */
+export async function placeOrder(
+  orderData: PlaceOrderInput,
+  client?: SupabaseDbClient | null
+): Promise<PlacedOrderRow> {
+  const db = resolveClient(client);
+
+  if (!db) {
     throw new Error('Supabase not configured');
   }
 
@@ -904,24 +1040,49 @@ export async function placeOrder(orderData: PlaceOrderInput): Promise<PlacedOrde
     throw new Error('Cannot place an order without a session');
   }
 
-  const validItems = (items ?? []).filter(item => Boolean(item?.product?.id));
+  // Reduce each requested line to the only three things a shopper may choose:
+  // which product, how many, which size. Quantity is clamped to the same ceiling
+  // the cart enforces, so a crafted request cannot order 10^9 shirts either.
+  const requestedLines = (items ?? [])
+    .map(item => ({
+      productId:
+        (typeof item?.productId === 'string' ? item.productId.trim() : '') ||
+        (typeof item?.product?.id === 'string' ? item.product.id.trim() : ''),
+      quantity: Math.min(toPositiveInt(item?.quantity, 1), MAX_LINE_QUANTITY),
+      size: normaliseSize(item?.size) || 'M',
+      cartLineId: typeof item?.cartLineId === 'string' ? item.cartLineId.trim() : ''
+    }))
+    .filter(line => Boolean(line.productId));
 
-  if (validItems.length === 0) {
+  if (requestedLines.length === 0) {
     throw new Error('Cannot place an order with an empty cart');
   }
 
-  // Same calculation the cart drawer shows, so the shopper is charged the
-  // amount they were quoted — GST included.
-  // `orders` has no tax column, so GST is not destructured here — it is carried
-  // inside `total` and stays derivable as `total_amount - subtotal - shipping_cost`.
-  const { subtotal, shipping, total } = computeCartCost(
-    validItems.map(item => ({
-      quantity: toPositiveInt(item.quantity, 1),
-      unitPrice: Number(item.product.price) || 0
-    }))
+  const prices = await readProductPrices(
+    db,
+    Array.from(new Set(requestedLines.map(line => line.productId)))
   );
 
-  const { data: order, error: orderError } = await supabase!
+  const pricedLines = requestedLines.map(line => {
+    const unitPrice = prices.get(line.productId);
+
+    if (unitPrice === undefined) {
+      // Missing, withdrawn or unpriced. Refusing the whole order is the honest
+      // answer: silently dropping the line would charge for a different cart
+      // than the one the shopper confirmed.
+      throw new Error(`Product ${line.productId} is not available for purchase`);
+    }
+
+    return { ...line, unitPrice };
+  });
+
+  // Same calculation the cart drawer shows, so the shopper is charged the
+  // amount they were quoted — GST included — only now fed database prices.
+  // `orders` has no tax column, so GST is not destructured here — it is carried
+  // inside `total` and stays derivable as `total_amount - subtotal - shipping_cost`.
+  const { subtotal, shipping, total } = computeCartCost(pricedLines);
+
+  const { data: order, error: orderError } = await db
     .from('orders')
     .insert({
       session_id: sessionId,
@@ -943,21 +1104,16 @@ export async function placeOrder(orderData: PlaceOrderInput): Promise<PlacedOrde
     throw new Error(`Error creating order: ${orderError?.message ?? 'unknown error'}`);
   }
 
-  const orderItems = validItems.map(item => {
-    const quantity = toPositiveInt(item.quantity, 1);
-    const price = roundMoney(Number(item.product.price) || 0);
+  const orderItems = pricedLines.map(line => ({
+    order_id: order.id,
+    product_id: line.productId,
+    quantity: line.quantity,
+    size: line.size,
+    price: line.unitPrice,
+    total_price: roundMoney(line.unitPrice * line.quantity)
+  }));
 
-    return {
-      order_id: order.id,
-      product_id: item.product.id,
-      quantity,
-      size: normaliseSize(item.size) || 'M',
-      price,
-      total_price: roundMoney(price * quantity)
-    };
-  });
-
-  const { error: itemsError } = await supabase!.from('order_items').insert(orderItems);
+  const { error: itemsError } = await db.from('order_items').insert(orderItems);
 
   if (itemsError) {
     throw new Error(`Error creating order items: ${itemsError.message}`);
@@ -969,22 +1125,28 @@ export async function placeOrder(orderData: PlaceOrderInput): Promise<PlacedOrde
   // Clear only the lines that were ordered. Deleting the whole session would
   // also destroy anything added after the checkout page took its snapshot —
   // items the shopper never saw on an order and was never charged for.
-  const orderedLineIds = validItems
-    .map(item => (typeof item.cartLineId === 'string' ? item.cartLineId.trim() : ''))
-    .filter((id): id is string => Boolean(id));
+  //
+  // Both branches are scoped by `session_id` as well, so a line id belonging to
+  // someone else's cart cannot be deleted by naming it here.
+  const orderedLineIds = pricedLines.map(line => line.cartLineId).filter(Boolean);
 
-  if (orderedLineIds.length === validItems.length && orderedLineIds.length > 0) {
-    await supabase!.from('cart_items').delete().in('id', orderedLineIds);
+  if (orderedLineIds.length === pricedLines.length) {
+    await db.from('cart_items').delete().eq('session_id', sessionId).in('id', orderedLineIds);
   } else {
     // Older callers do not send line ids; fall back to clearing the session.
-    await supabase!.from('cart_items').delete().eq('session_id', sessionId);
+    await db.from('cart_items').delete().eq('session_id', sessionId);
   }
 
   return order as PlacedOrderRow;
 }
 
-export async function getOrders(sessionId: string): Promise<Order[]> {
-  if (!checkSupabase()) {
+export async function getOrders(
+  sessionId: string,
+  client?: SupabaseDbClient | null
+): Promise<Order[]> {
+  const db = resolveClient(client);
+
+  if (!db) {
     throw new Error('Supabase not configured');
   }
 
@@ -992,7 +1154,7 @@ export async function getOrders(sessionId: string): Promise<Order[]> {
     return [];
   }
 
-  const { data: orders, error: ordersError } = await supabase!
+  const { data: orders, error: ordersError } = await db
     .from('orders')
     .select(
       `

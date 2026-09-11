@@ -1,5 +1,6 @@
 'use client';
 
+import SectionHeading from '@/components/common/SectionHeading';
 import { useAuth } from '@/hooks/useAuth';
 import { Product } from '@/lib/supabase/types';
 import { shareOnWhatsApp } from '@/lib/whatsapp-share';
@@ -27,6 +28,14 @@ interface Feedback {
 const ADD_TO_CART_ERROR = "Sorry, we couldn't add this item to your cart. Please try again.";
 const SIZE_REQUIRED_ERROR = 'Please choose a size before adding this item to your cart.';
 const ADD_TO_CART_SUCCESS = 'Added to your cart.';
+
+/**
+ * The eyebrow above the product title is the garment's category. Products can
+ * arrive without one, and `SectionHeading` treats the eyebrow as required —
+ * correctly, because a heading with no thread above it is the defect that
+ * component exists to prevent — so this is what stands in.
+ */
+const FALLBACK_EYEBROW = 'Menswear';
 
 const SUCCESS_DURATION_MS = 3000;
 const ERROR_DURATION_MS = 6000;
@@ -60,6 +69,7 @@ export default function ProductDescription({ product }: ProductDescriptionProps)
   const groupId = useId();
   const sizeGroupName = `product-size-${groupId}`;
   const sizeHintId = `product-size-hint-${groupId}`;
+  const quantityLabelId = `product-quantity-label-${groupId}`;
 
   const isMountedRef = useRef(true);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -151,8 +161,9 @@ export default function ProductDescription({ product }: ProductDescriptionProps)
     }
   };
 
+  const category = product.category?.trim();
   const unitPrice = product.price || 0;
-  const totalPrice = unitPrice * quantity;
+  const lineSubtotal = unitPrice * quantity;
 
   const handleWhatsAppShare = () => {
     shareOnWhatsApp({
@@ -165,26 +176,29 @@ export default function ProductDescription({ product }: ProductDescriptionProps)
     // and no shadow, not a black card with `shadow-2xl`. Gold on this surface
     // is `zari-700` (4.85:1); `zari-500` would be 1.96:1 and is banned here.
     <div className="rounded-plate border border-line bg-paper-raised p-5 md:p-8">
-      {/* Title & Description */}
-      <div className="mb-6">
-        <h1 className="mb-3 font-display text-h1 text-ink">{product.title}</h1>
-        <p className="max-w-[62ch] text-lead text-ink-muted">{product.description}</p>
-      </div>
+      {/* Title & Description.
 
-      {/* Price & Category */}
-      <div className="mb-8 flex flex-wrap items-center gap-4">
+          The signature composite, built by the shared `SectionHeading` rather
+          than by hand: category eyebrow, zari thread, then the `h1`. This is
+          the page's only `h1`. The category chip that used to sit beside the
+          price is gone with it — the same word was then appearing three times
+          on one screen (breadcrumb, chip, and the catalogue rail below), and
+          the eyebrow is where this design system puts it. */}
+      <SectionHeading
+        eyebrow={category || FALLBACK_EYEBROW}
+        title={product.title}
+        as="h1"
+        className="mb-4"
+      />
+      <p className="mb-6 max-w-[62ch] text-lead text-ink-muted">{product.description}</p>
+
+      {/* Price */}
+      <div className="mb-8">
         <Price
           amount={unitPrice.toString()}
           currencyCode="INR"
           className="num text-price-lg text-zari-700"
         />
-        {/* rounded-control, not rounded-pill: this chip sits directly above the
-            size chips, and the pill radius is reserved for avatars and badges. */}
-        {product.category && (
-          <span className="w-fit rounded-control border border-line bg-paper-sunk px-3 py-1 text-body-sm capitalize text-ink-muted">
-            {product.category}
-          </span>
-        )}
       </div>
 
       {/* Size Selector */}
@@ -194,7 +208,15 @@ export default function ProductDescription({ product }: ProductDescriptionProps)
               in the cart and in admin — one repeated device is what makes the
               three read as one brand. */}
           <legend className="eyebrow mb-3 p-0 text-ink-muted">
-            Select size <span className="font-normal">(required)</span>
+            Select size{' '}
+            {selectedSize ? (
+              // The chosen chip already carries the metal edge, but the legend
+              // is what a screen reader reads when focus enters the group, so
+              // the current answer belongs in it too.
+              <span className="text-ink">— {selectedSize}</span>
+            ) : (
+              <span className="font-normal">(required)</span>
+            )}
           </legend>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
             {sizes.map((size) => {
@@ -246,10 +268,18 @@ export default function ProductDescription({ product }: ProductDescriptionProps)
         </fieldset>
       )}
 
-      {/* Quantity Selector */}
+      {/* Quantity Selector.
+
+          The label is a `<p>`, not an `<h2>`: it labels a control group, and
+          as a heading it sat between this page's `h1` and the recommendations
+          `h2` as a section that does not exist. `role="group"` plus
+          `aria-labelledby` gives assistive tech the association a heading was
+          never giving it. */}
       <div className="mb-8">
-        <h2 className="eyebrow mb-3 text-ink-muted">Quantity</h2>
-        <div className="flex items-center gap-4">
+        <p id={quantityLabelId} className="eyebrow mb-3 text-ink-muted">
+          Quantity
+        </p>
+        <div role="group" aria-labelledby={quantityLabelId} className="flex items-center gap-4">
           {/* 44px square: the touch target the old 32px control never met. */}
           <button
             type="button"
@@ -275,18 +305,28 @@ export default function ProductDescription({ product }: ProductDescriptionProps)
         </div>
       </div>
 
-      {/* Total Price — the woven rule is the totals separator, here as it is
-          in the cart drawer, instead of a boxed grey panel. */}
+      {/* Line subtotal — the woven rule is the totals separator, here as it is
+          in the cart drawer, instead of a boxed grey panel.
+
+          "Subtotal", not "Total": GST is applied on top of the subtotal by
+          `computeCartCost`, and shipping is a separate line, so calling
+          price x quantity the total was a promise this page cannot keep. The
+          two lines under it are the only things this page can state as fact —
+          shipping is a flat zero today and GST lands at checkout — so neither
+          claims a delivery window or a returns policy nobody has written. */}
       <div className="mb-8">
         <div className="rule-zari" aria-hidden="true" />
-        <div className="mt-4 flex items-baseline justify-between">
-          <span className="eyebrow text-ink-muted">Total</span>
+        <div className="mt-4 flex items-baseline justify-between gap-4">
+          <span className="eyebrow text-ink-muted">Subtotal</span>
           <Price
-            amount={totalPrice.toString()}
+            amount={lineSubtotal.toString()}
             currencyCode="INR"
             className="num text-price-lg text-zari-700"
           />
         </div>
+        <p className="mt-2 text-body-sm text-ink-muted">
+          Free delivery. GST calculated at checkout.
+        </p>
       </div>
 
       {/* Add to Cart & WhatsApp Buttons */}

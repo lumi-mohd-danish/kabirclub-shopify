@@ -1,201 +1,251 @@
 'use client';
 
-import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { createCollection } from '@/lib/supabase/admin-api';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
-// See src/app/admin/products/page.tsx for the shared admin control vocabulary.
-// The one filled gold element here is the "Create Collection" submit.
-const BTN_GOLD =
-  'btn px-4 py-3 text-body-sm disabled:border-transparent disabled:bg-ink-600 disabled:text-paper disabled:cursor-not-allowed';
-const BTN_GHOST =
-  'inline-flex items-center justify-center gap-2 rounded-control border border-ink-faint px-4 py-3 text-body-sm font-medium leading-none text-paper transition-colors duration-fast ease-cloth hover:bg-ink-700 active:translate-y-px';
-const LABEL = 'eyebrow mb-2 block text-paper-muted';
-const HINT = 'mt-2 text-caption text-paper-muted';
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import {
+  BTN_GHOST,
+  BTN_PRIMARY,
+  FIELD,
+  HINT,
+  INLINE_ERROR,
+  LABEL,
+  bannerClass,
+  errorMessage,
+  type AdminMessage
+} from '@/components/admin/admin-ui';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { createCollection } from '@/lib/supabase/admin-api';
+
+const REDIRECT_DELAY_MS = 1200;
+
+/** The same rule the product handle follows, and the same one the routes use. */
+const HANDLE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+type FieldKey = 'title' | 'handle';
+
+const slugify = (value: string): string =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/[\s_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
 
 export default function NewCollectionPage() {
   const { requireAdmin } = useAdminAuth();
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const fieldId = useId();
 
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    handle: '',
-    image: ''
-  });
+  const [title, setTitle] = useState('');
+  const [handle, setHandle] = useState('');
+  const [handleEdited, setHandleEdited] = useState(false);
+  const [description, setDescription] = useState('');
+  const [image, setImage] = useState('');
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
+  const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [message, setMessage] = useState<AdminMessage | null>(null);
+  const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    if (name === 'title' && !formData.handle) {
-      // Auto-generate handle from title
-      const autoHandle = value
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .trim();
+  const ids = {
+    title: `${fieldId}-title`,
+    handle: `${fieldId}-handle`,
+    description: `${fieldId}-description`,
+    image: `${fieldId}-image`
+  };
 
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-        handle: autoHandle
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value
-      }));
+  const errorId = (field: FieldKey) => `${fieldId}-${field}-error`;
+
+  // A pending redirect must not fire after this page has gone away.
+  useEffect(
+    () => () => {
+      if (redirectTimer.current) clearTimeout(redirectTimer.current);
+    },
+    []
+  );
+
+  const isBusy = isSaving || isRedirecting;
+
+  const handleTitleChange = (value: string) => {
+    setTitle(value);
+    setErrors((current) => ({ ...current, title: undefined }));
+
+    // The handle follows the title until it is typed in by hand. It used to
+    // stop following after the very first keystroke, which left every
+    // collection handled by its first letter.
+    if (!handleEdited) {
+      setHandle(slugify(value));
+      setErrors((current) => ({ ...current, handle: undefined }));
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (isBusy) return;
+
+    const trimmedTitle = title.trim();
+    const tidyHandle = slugify(handle);
+    const nextErrors: Partial<Record<FieldKey, string>> = {};
+
+    if (!trimmedTitle) nextErrors.title = 'A title is required.';
+    if (!tidyHandle) {
+      nextErrors.handle = 'A handle is required.';
+    } else if (!HANDLE_PATTERN.test(tidyHandle)) {
+      nextErrors.handle = 'Use lowercase letters, numbers and single hyphens only.';
+    }
+
+    setHandle(tidyHandle);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      document.getElementById(nextErrors.title ? ids.title : ids.handle)?.focus();
+      return;
+    }
+
+    setErrors({});
 
     try {
       requireAdmin();
-      setIsLoading(true);
+      setIsSaving(true);
       setMessage(null);
 
-      // Validation
-      if (!formData.title || !formData.handle) {
-        throw new Error('Please fill in all required fields');
-      }
-
-      const collectionData = {
-        title: formData.title,
-        description: formData.description,
-        handle: formData.handle,
-        image: formData.image || undefined
-      };
-
-      await createCollection(collectionData);
-
-      setMessage({
-        type: 'success',
-        text: 'Collection created successfully!'
+      await createCollection({
+        title: trimmedTitle,
+        description: description.trim(),
+        handle: tidyHandle,
+        image: image.trim() || undefined
       });
 
-      // Redirect after a brief delay
-      setTimeout(() => {
+      setIsRedirecting(true);
+      setMessage({ type: 'success', text: `“${trimmedTitle}” was created.` });
+
+      redirectTimer.current = setTimeout(() => {
         router.push('/admin/collections');
-      }, 1500);
-    } catch (error: any) {
-      console.error('Error creating collection:', error);
-      setMessage({
-        type: 'error',
-        text: error.message || 'Failed to create collection'
-      });
+      }, REDIRECT_DELAY_MS);
+    } catch (error) {
+      setMessage({ type: 'error', text: errorMessage(error, 'Failed to create collection') });
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="eyebrow text-zari-500">Collections</p>
-          <h1 className="mt-2 font-display text-h2 text-paper">Add New Collection</h1>
-          <div className="rule-zari mt-3 w-12" />
-          <p className="mt-3 text-body-sm text-paper-muted">Create a new product collection</p>
-        </div>
-        <Link href="/admin/collections" className={BTN_GHOST}>
-          Back to Collections
-        </Link>
-      </div>
+    <div className="space-y-5">
+      <AdminPageHeader
+        eyebrow="Collections"
+        title="Add new collection"
+        description="Group products under one handle."
+        actions={
+          <Link href="/admin/collections" className={BTN_GHOST}>
+            Back to collections
+          </Link>
+        }
+      />
 
-      {message && (
-        <div
-          role="status"
-          aria-live="polite"
-          className={`px-4 py-3 text-body-sm ${
-            message.type === 'success' ? 'bg-neem text-paper' : 'bg-madder text-paper'
-          }`}
-        >
+      {message ? (
+        <p role="status" aria-live="polite" className={bannerClass(message.type)}>
           {message.text}
-        </div>
-      )}
+        </p>
+      ) : null}
 
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-5 border border-ink-700 bg-ink-800 p-4 md:p-6"
-      >
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+      <form onSubmit={handleSubmit} className="space-y-5 border border-ink-700 bg-ink-800 p-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label htmlFor="title" className={LABEL}>
-              Collection Title *
+            <label htmlFor={ids.title} className={LABEL}>
+              Collection title *
             </label>
             <input
-              type="text"
-              id="title"
+              id={ids.title}
               name="title"
-              value={formData.title}
-              onChange={handleInputChange}
+              type="text"
+              value={title}
+              onChange={(event) => handleTitleChange(event.target.value)}
               required
-              className="field-ink py-2"
+              aria-invalid={errors.title ? true : undefined}
+              aria-describedby={errors.title ? errorId('title') : undefined}
+              className={FIELD}
               placeholder="Enter collection title"
             />
+            {errors.title ? (
+              <p id={errorId('title')} className={INLINE_ERROR}>
+                {errors.title}
+              </p>
+            ) : null}
           </div>
 
           <div>
-            <label htmlFor="handle" className={LABEL}>
+            <label htmlFor={ids.handle} className={LABEL}>
               Handle (URL) *
             </label>
             <input
-              type="text"
-              id="handle"
+              id={ids.handle}
               name="handle"
-              value={formData.handle}
-              onChange={handleInputChange}
+              type="text"
+              value={handle}
+              onChange={(event) => {
+                setHandleEdited(true);
+                setHandle(event.target.value);
+                setErrors((current) => ({ ...current, handle: undefined }));
+              }}
+              onBlur={() => setHandle((current) => slugify(current))}
               required
-              className="field-ink py-2"
+              aria-invalid={errors.handle ? true : undefined}
+              aria-describedby={errors.handle ? errorId('handle') : undefined}
+              className={FIELD}
               placeholder="collection-url-handle"
             />
-            <p className={HINT}>URL-friendly identifier (auto-generated from title)</p>
+            {errors.handle ? (
+              <p id={errorId('handle')} className={INLINE_ERROR}>
+                {errors.handle}
+              </p>
+            ) : (
+              <p className={HINT}>
+                Generated from the title. This becomes /search/{handle || 'your-handle'}.
+              </p>
+            )}
           </div>
         </div>
 
         <div>
-          <label htmlFor="description" className={LABEL}>
+          <label htmlFor={ids.description} className={LABEL}>
             Description
           </label>
           <textarea
-            id="description"
+            id={ids.description}
             name="description"
-            value={formData.description}
-            onChange={handleInputChange}
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
             rows={4}
-            className="field-ink py-2"
+            className={FIELD}
             placeholder="Enter collection description"
           />
         </div>
 
         <div>
-          <label htmlFor="image" className={LABEL}>
-            Collection Image (Optional)
+          <label htmlFor={ids.image} className={LABEL}>
+            Collection image (optional)
           </label>
           <input
-            type="url"
-            id="image"
+            id={ids.image}
             name="image"
-            value={formData.image}
-            onChange={handleInputChange}
-            className="field-ink py-2"
+            type="url"
+            value={image}
+            onChange={(event) => setImage(event.target.value)}
+            className={FIELD}
             placeholder="https://example.com/collection-image.jpg"
           />
         </div>
 
-        {/* Submit Button */}
-        <div className="flex flex-wrap gap-3 border-t border-ink-700 pt-5">
-          <button type="submit" disabled={isLoading} className={BTN_GOLD}>
-            {isLoading ? 'Creating...' : 'Create Collection'}
+        <div className="flex flex-wrap gap-2 border-t border-ink-700 pt-4">
+          <button type="submit" disabled={isBusy} className={BTN_PRIMARY}>
+            {isRedirecting ? 'Created' : isSaving ? 'Creating…' : 'Create collection'}
           </button>
-
           <Link href="/admin/collections" className={BTN_GHOST}>
             Cancel
           </Link>

@@ -1,5 +1,6 @@
 'use client';
 
+import SectionHeading from '@/components/common/SectionHeading';
 import Price from '@/components/common/price';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -19,6 +20,32 @@ import { DeleteItemButton } from './delete-item-button';
 import { EditItemQuantityButton } from './edit-item-quantity-button';
 
 const GST_LABEL = `GST (${Math.round(GST_RATE * 100)}%)`;
+
+/**
+ * The bag glyph, drawn rather than imported.
+ *
+ * The empty state used to render `/images/cart.png` at 36px — a raster whose
+ * colour the system cannot touch, sitting on an ink ground it was never cut
+ * for. This is the same 1.5px stroked figure the error and confirmation badges
+ * use, so it takes its colour from the token on the wrapper.
+ */
+function BagIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-7 w-7"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M5.5 7.5h13l1 12.5a1 1 0 0 1-1 1.1H5.5a1 1 0 0 1-1-1.1Z" />
+      <path d="M8.75 10V6.25a3.25 3.25 0 0 1 6.5 0V10" />
+    </svg>
+  );
+}
 
 /**
  * The size the shopper picked, read from the line's own `size` column and
@@ -241,12 +268,45 @@ export default function CartModal({
               </p>
 
               {lines.length === 0 ? (
-                <div className="mt-20 flex w-full flex-col items-center justify-center overflow-hidden">
-                  <Image src="/images/cart.png" width="36" height="36" alt="" />
-                  <p className="mt-6 text-center font-display text-h2 text-paper">
-                    Your cart is empty.
+                /*
+                  A designed empty state, not a dead end. It carries the full
+                  heading composite (badge -> eyebrow -> thread -> heading), one
+                  line of copy that says what the drawer is FOR, and the two
+                  routes out — the catalogue, and the order history for a
+                  shopper who opened the cart looking for something they have
+                  already bought.
+                */
+                <div className="flex flex-1 flex-col items-center justify-center overflow-y-auto px-2 py-8 text-center">
+                  <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-pill border border-ink-700 bg-ink-800 text-paper-muted">
+                    <BagIcon />
+                  </span>
+
+                  <SectionHeading
+                    eyebrow="Nothing here yet"
+                    title="Your cart is empty"
+                    as="h3"
+                    align="center"
+                    tone="ink"
+                    density="compact"
+                    className="mt-5"
+                  />
+
+                  <p className="mt-4 max-w-[34ch] text-body-sm text-paper-muted">
+                    Anything you add is held here while you keep looking. Sizes and quantities can
+                    be changed right up to checkout.
                   </p>
-                  <div className="rule-zari mt-6 w-16" aria-hidden="true" />
+
+                  <Link href="/" onClick={closeCart} className="btn-cart mt-8">
+                    Browse the collection
+                  </Link>
+
+                  <Link
+                    href="/orders"
+                    onClick={closeCart}
+                    className="thread-link-ink mt-5 text-body-sm text-paper-muted hover:text-zari-500"
+                  >
+                    View My Orders
+                  </Link>
                 </div>
               ) : (
                 <div className="flex h-full flex-col justify-between overflow-hidden p-1">
@@ -286,11 +346,16 @@ export default function CartModal({
                                 <span className="line-clamp-2 text-body font-medium text-paper">
                                   {item.merchandise.product.title}
                                 </span>
-                                {size && (
-                                  <span className="mt-1 text-body-sm text-paper-muted">
-                                    Size: {size}
+                                {/* The size is an attribute of the line, not a
+                                    caption under it: a chip on the raised ink
+                                    surface, so it survives a two-line title
+                                    and reads at a glance. Screen readers get
+                                    the word "Size" with it. */}
+                                {size ? (
+                                  <span className="mt-2 inline-flex w-fit items-center rounded-control border border-ink-600 bg-ink-800 px-2 py-0.5 text-caption text-paper-muted">
+                                    Size {size}
                                   </span>
-                                )}
+                                ) : null}
                               </div>
                             </Link>
                             <div className="flex h-16 flex-col justify-between">

@@ -21,43 +21,71 @@
 --     public.users — checked inside Postgres, never in the browser.
 --
 -- ----------------------------------------------------------------------------
--- !! DO NOT APPLY SECTIONS 6 AND 7 YET !!
+-- THE WHOLE FILE IS NOW SAFE TO RUN, SECTIONS 6 AND 7 INCLUDED
 -- ----------------------------------------------------------------------------
--- Sections 1-5 and 8-9 are SAFE AND SHOULD BE RUN NOW. They are what stops the
--- public anon key from rewriting your catalogue.
+-- Earlier revisions carried a "DO NOT APPLY SECTIONS 6 AND 7" warning, because
+-- the app sent Postgres nothing it could use to tell one guest cart from
+-- another. It does now, so the warning is gone: run the file top to bottom.
+-- Read "ONE THING TO DO WHEN YOU RUN IT" below first -- it is a short list of
+-- call sites to move, not another blocker.
 --
--- Sections 6 (cart_items) and 7 (orders) are NOT yet safe to apply. They scope
--- a guest's rows either by `user_id = auth.uid()` or by an `x-session-id`
--- request header. The app sets neither today, so applying them makes every
--- guest cart and guest order return zero rows -- add-to-cart and checkout stop
--- working.
+-- HOW A GUEST CART IS IDENTIFIED TO POSTGRES
+--   Guest carts and guest orders are keyed by a `sessionId` cookie, and that
+--   cookie is httpOnly: page JavaScript can neither read it nor forge one
+--   (src/components/cart/actions.ts). Postgres cannot read a cookie either, so
+--   the session has to arrive as something PostgREST does forward -- a request
+--   header. Sections 6 and 7 scope a guest's rows by
 --
--- An earlier draft of this file told you to read the cookie in the browser:
---     document.cookie.match(/(?:^|;\s*)sessionId=([^;]*)/)
--- That is no longer possible. The same changeset that added this file made the
--- `sessionId` cookie httpOnly (src/components/cart/actions.ts), precisely so a
--- cart session cannot be read or forged from JavaScript. The cookie is now
--- invisible to `document.cookie` by design, so the header has to be attached
--- server-side.
+--     user_id = auth.uid()                      -- signed-in shoppers
+--     OR session_id = public.request_session_id() -- guests
 --
--- WHAT HAS TO SHIP BEFORE SECTIONS 6-7 CAN BE APPLIED
---   Move the cart and order writes (addToCart / updateCartItem /
---   removeFromCart / placeOrder) behind server actions that read the httpOnly
---   cookie with `cookies().get('sessionId')` and talk to Postgres through a
---   per-request Supabase client carrying that value:
+--   and `public.request_session_id()` (section 2) reads the `x-session-id`
+--   header out of `current_setting('request.headers')`. It returns NULL when
+--   the header is absent, so a caller that does not send one matches nothing
+--   rather than matching everything.
+--
+-- WHAT SENDS THE HEADER
+--   `createSessionClient(sessionId)` in src/lib/supabase.ts builds a
+--   per-request Supabase client:
 --
 --     createClient(url, anonKey, {
 --       global: { headers: { 'x-session-id': sessionId } }
 --     })
 --
---   The module-level singleton in src/lib/supabase.ts cannot do this: it is
---   created once, with no request context. Stamping `user_id` on cart_items and
---   orders for signed-in shoppers is the other half, and removes the need for
---   the header entirely once every shopper has an account.
+--   The module-level `supabase` singleton in that same file cannot do this --
+--   it is constructed once at import time, shared by every concurrent visitor,
+--   and has no request context -- so it is left exactly as it was and the
+--   factory is used alongside it.
 --
--- This is tracked as follow-up work; it is a real architectural change, not a
--- one-line edit, which is why sections 6-7 are gated rather than shipped half
--- working.
+--   The server actions in src/components/cart/actions.ts read the httpOnly
+--   cookie with `cookies().get('sessionId')`, build that client, and pass it
+--   down. addItem / removeItem / updateItemQuantity already do this, so every
+--   cart_items write reaches Postgres with the caller's real session id.
+--
+-- ONE THING TO DO WHEN YOU RUN IT
+--   Any code path that still touches cart_items or orders with the plain
+--   singleton client -- that is, straight from the browser rather than through
+--   a server action -- returns zero rows once sections 6-7 are live. That is
+--   the policy working correctly, not a bug: such a caller has no proof of
+--   which session it is.
+--
+--   At the time of writing the browser still calls `getCart`, `placeOrder` and
+--   `getOrders` directly from src/components/cart/index.tsx,
+--   src/app/checkout/page.tsx, src/app/orders/page.tsx and
+--   src/app/profile/page.tsx. Server-action replacements are already exported
+--   from src/components/cart/actions.ts and are drop-in:
+--
+--     getCart(await getCartSessionId())  ->  getCartForSession()
+--     getOrders(await getCartSessionId())->  getOrdersForSession()
+--     placeOrder({ sessionId, items, ... })
+--                                        ->  placeOrderAction({ items, ... })
+--
+--   Switch those four call sites over, then run this file.
+--
+-- Stamping `user_id` on cart_items and orders for signed-in shoppers is the
+-- natural next step; it removes the need for the header entirely once every
+-- shopper has an account. The policies below already accept `auth.uid()`, so
+-- nothing here has to change when that lands.
 -- ============================================================================
 
 
@@ -250,7 +278,8 @@ CREATE POLICY collections_admin_delete ON public.collections
 -- ----------------------------------------------------------------------------
 -- 6. cart_items — each visitor sees only their own cart
 -- ----------------------------------------------------------------------------
--- Requires the `x-session-id` header described at the top of this file.
+-- Guests are matched on the `x-session-id` header described at the top of this
+-- file, which the cart server actions send via `createSessionClient(...)`.
 
 ALTER TABLE public.cart_items ENABLE ROW LEVEL SECURITY;
 
@@ -299,7 +328,10 @@ CREATE POLICY cart_items_owner_delete ON public.cart_items
 -- ----------------------------------------------------------------------------
 -- Orders hold names, phone numbers and postal addresses. With RLS off, the
 -- public anon key can read every customer's address, so this is not optional.
--- Same `x-session-id` requirement as section 6.
+-- Same `x-session-id` mechanism as section 6. Note that these policies decide
+-- WHICH rows may be written, not what they may contain: `placeOrder` in
+-- src/lib/supabase/api.ts re-reads every unit price from the products table, so
+-- the amounts stored here are the store's, never the browser's.
 
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 

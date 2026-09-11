@@ -3,6 +3,8 @@
 import { compressImage, uploadImageFile, validateImageFile } from '@/lib/image-upload';
 import { useCallback, useRef, useState } from 'react';
 
+import { errorMessage } from './admin-ui';
+
 interface ImageUploadProps {
   // eslint-disable-next-line no-unused-vars
   onImageUploaded: (imageUrl: string) => void;
@@ -10,6 +12,13 @@ interface ImageUploadProps {
   onError?: (errorMessage: string) => void;
   className?: string;
   maxImages?: number;
+  /**
+   * What the form already holds. Used for the remaining-slots maths and the
+   * counter only — the THUMBNAILS are the form's job, because the form is what
+   * can remove one. This component used to render its own preview grid as
+   * well, so every product page showed each image twice: once here without a
+   * remove control, and again below it with one.
+   */
   currentImages?: string[];
 }
 
@@ -72,9 +81,10 @@ export default function ImageUpload({
 
           onImageUploadedProp(result.url);
           setUploadProgress(100);
-        } catch (error: any) {
-          if (error.name !== 'AbortError') {
-            onErrorProp?.(error.message || 'Failed to upload image');
+        } catch (error) {
+          // A cancelled upload is a choice, not a failure worth reporting.
+          if (!(error instanceof Error) || error.name !== 'AbortError') {
+            onErrorProp?.(errorMessage(error, 'Failed to upload image'));
           }
         } finally {
           setIsUploading(false);
@@ -178,7 +188,7 @@ export default function ImageUpload({
                 </svg>
               </div>
               <div>
-                <p className="text-body-sm text-paper">Uploading image...</p>
+                <p className="text-body-sm text-paper">Uploading image…</p>
                 {uploadProgress > 0 && (
                   <div className="mt-2 h-1 w-full bg-ink-700">
                     <div
@@ -229,32 +239,12 @@ export default function ImageUpload({
         </div>
       )}
 
-      {/* Current Images Preview */}
-      {currentImages.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-          {currentImages.map((imageUrl, index) => (
-            <div key={index} className="group relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={imageUrl}
-                alt={`Upload ${index + 1}`}
-                className="h-24 w-full border border-ink-700 bg-paper-sunk object-cover"
-                onError={(e) => {
-                  e.currentTarget.src = '/images/placeholder.png';
-                }}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-
       {/* Upload Instructions */}
       {maxImages > 1 && (
-        <div className="space-y-1 text-caption text-paper-muted">
-          <p>• You can upload up to {maxImages} images</p>
-          <p>• Images will be automatically compressed if larger than 2MB</p>
-          <p>• Recommended size: 1920px width or less</p>
-        </div>
+        <p className="text-caption text-paper-muted">
+          Up to {maxImages} images. Anything over 2MB is compressed to 1920px wide before it is
+          sent.
+        </p>
       )}
     </div>
   );

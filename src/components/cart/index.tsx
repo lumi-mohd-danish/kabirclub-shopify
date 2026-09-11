@@ -1,9 +1,9 @@
 'use client';
 
 import { useAuth } from '@/hooks/useAuth';
-import { getCart, type CartWithSizes } from '@/lib/supabase/api';
+import { type CartWithSizes } from '@/lib/supabase/api';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getCartSessionId } from './actions';
+import { getCartForSession } from './actions';
 import CartModal from './modal';
 
 export default function Cart() {
@@ -34,9 +34,10 @@ export default function Cart() {
     const requestId = ++requestIdRef.current;
 
     try {
-      // The session cookie is httpOnly, so the id has to come from the server.
-      const sessionId = await getCartSessionId();
-      const nextCart = sessionId ? await getCart(sessionId) : null;
+      // The session cookie is httpOnly, so the read happens server-side: the
+      // action resolves the session AND the cart in one round trip, and the id
+      // never reaches the browser to be swapped for somebody else's.
+      const nextCart = await getCartForSession();
 
       if (!isMountedRef.current || requestId !== requestIdRef.current) return;
       setCart(nextCart);

@@ -1,30 +1,40 @@
 'use client';
 
+import Link from 'next/link';
+import { useEffect, useId, useState } from 'react';
+
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import AdminThumb from '@/components/admin/AdminThumb';
+import ConfirmDialog, { useConfirm } from '@/components/admin/ConfirmDialog';
+import {
+  BTN_GHOST,
+  BTN_GHOST_SM,
+  BTN_PRIMARY,
+  CHIP_ACTIVE,
+  CHIP_DANGER,
+  CHIP_INACTIVE,
+  CHIP_POSITIVE,
+  FIELD,
+  LABEL,
+  PLATE,
+  PRODUCT_CATEGORIES,
+  TABLE_HEAD,
+  TD,
+  TD_MUTED,
+  TH,
+  TR,
+  bannerClass,
+  errorMessage,
+  type AdminMessage
+} from '@/components/admin/admin-ui';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { deleteProduct, toggleProductStatus } from '@/lib/supabase/admin-api';
 import { getProducts } from '@/lib/supabase/api';
 import { Product } from '@/lib/supabase/types';
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
 
 const PAGE_SIZE = 25;
 const SEARCH_DEBOUNCE_MS = 300;
-
-const CATEGORIES = ['Topwear', 'Bottomwear', 'Accessories', 'Footwear'];
-
-// -- Admin control vocabulary -------------------------------------------------
-// The one filled gold element on this screen is "Add New Product". Everything
-// else is a hairline ghost on ink. `madder` cannot be used as TEXT on ink
-// (2.53:1 on ink-900), so destructive controls stay neutral at rest and fill
-// madder on hover/focus, where paper on madder is 6.61:1.
-const BTN_GOLD = 'btn px-4 py-3 text-body-sm';
-const BTN_GHOST =
-  'inline-flex items-center justify-center gap-2 rounded-control border border-ink-faint px-4 py-3 text-body-sm font-medium leading-none text-paper transition-colors duration-fast ease-cloth hover:bg-ink-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50';
-const BTN_GHOST_SM =
-  'inline-flex items-center justify-center rounded-control border border-ink-faint px-3 py-1.5 text-caption font-medium text-paper transition-colors duration-fast ease-cloth hover:bg-ink-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50';
-const CHIP_ACTION =
-  'rounded-control border border-ink-faint px-2 py-1 text-caption font-medium text-paper transition-colors duration-fast ease-cloth active:translate-y-px disabled:cursor-not-allowed disabled:opacity-50';
-const TH = 'eyebrow px-4 py-3 text-left text-paper-muted';
 
 const priceFormatter = new Intl.NumberFormat('en-IN', {
   style: 'currency',
@@ -34,21 +44,24 @@ const priceFormatter = new Intl.NumberFormat('en-IN', {
 const formatPrice = (price: number): string =>
   priceFormatter.format(Number.isFinite(price) ? price : 0);
 
-const errorMessage = (error: unknown, fallback: string): string =>
-  error instanceof Error && error.message ? error.message : fallback;
-
 export default function AdminProductsPage() {
   const { requireAdmin } = useAdminAuth();
+  const { confirm, dialogProps } = useConfirm();
+  const fieldId = useId();
+
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [reloadToken, setReloadToken] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingId, setPendingId] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<AdminMessage | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+
+  const searchId = `${fieldId}-search`;
+  const categoryId = `${fieldId}-category`;
 
   // Debounce typing so a search does not fire one query per keystroke.
   useEffect(() => {
@@ -73,7 +86,7 @@ export default function AdminProductsPage() {
           category: selectedCategory || undefined,
           page,
           limit: PAGE_SIZE,
-          // Admin must see disabled products — they are the only place a
+          // Admin must see disabled products — this is the only place a
           // disabled product can be edited or switched back on.
           includeInactive: true
         });
@@ -108,25 +121,25 @@ export default function AdminProductsPage() {
 
   const refresh = () => setReloadToken((token) => token + 1);
 
-  const handleDeleteProduct = async (id: string, title: string) => {
-    if (
-      !window.confirm(
-        `Delete "${title}" permanently?\n\nThis cannot be undone. To hide it from the storefront instead, use Disable.`
-      )
-    ) {
-      return;
-    }
+  const handleDeleteProduct = async (product: Product) => {
+    const confirmed = await confirm({
+      title: `Delete “${product.title}”?`,
+      body: 'This cannot be undone. To hide it from the storefront instead, use Disable.',
+      confirmLabel: 'Delete product'
+    });
+
+    if (!confirmed) return;
 
     try {
       requireAdmin();
-      setPendingId(id);
+      setPendingId(product.id);
       setMessage(null);
 
-      await deleteProduct(id);
+      await deleteProduct(product.id);
 
-      setProducts((current) => current.filter((p) => p.id !== id));
+      setProducts((current) => current.filter((entry) => entry.id !== product.id));
       setTotal((current) => Math.max(0, current - 1));
-      setMessage({ type: 'success', text: `Product "${title}" deleted successfully` });
+      setMessage({ type: 'success', text: `“${product.title}” was deleted.` });
 
       // Pull the next row into the gap this delete left in the page.
       refresh();
@@ -137,34 +150,39 @@ export default function AdminProductsPage() {
     }
   };
 
-  const handleToggleStatus = async (id: string, currentStatus: boolean, title: string) => {
-    const newStatus = !currentStatus;
+  const handleToggleStatus = async (product: Product) => {
+    const nextStatus = !product.is_active;
 
     // Disabling removes the product from the storefront, so it is confirmed.
     // Re-enabling only restores it, so it is not.
-    if (
-      !newStatus &&
-      !window.confirm(`Disable "${title}"?\n\nIt will stop appearing anywhere on the storefront.`)
-    ) {
-      return;
+    if (!nextStatus) {
+      const confirmed = await confirm({
+        title: `Disable “${product.title}”?`,
+        body: 'It stops appearing anywhere on the storefront until you switch it back on. Nothing is deleted.',
+        confirmLabel: 'Disable product'
+      });
+
+      if (!confirmed) return;
     }
 
     try {
       requireAdmin();
-      setPendingId(id);
+      setPendingId(product.id);
       setMessage(null);
 
-      await toggleProductStatus(id, newStatus);
+      await toggleProductStatus(product.id, nextStatus);
 
       setProducts((current) =>
-        current.map((p) => (p.id === id ? { ...p, is_active: newStatus } : p))
+        current.map((entry) =>
+          entry.id === product.id ? { ...entry, is_active: nextStatus } : entry
+        )
       );
       setMessage({
         type: 'success',
-        text: `Product "${title}" ${newStatus ? 'enabled' : 'disabled'} successfully`
+        text: `“${product.title}” is now ${nextStatus ? 'active' : 'disabled'}.`
       });
     } catch (error) {
-      setMessage({ type: 'error', text: errorMessage(error, 'Failed to toggle product status') });
+      setMessage({ type: 'error', text: errorMessage(error, 'Failed to change product status') });
     } finally {
       setPendingId(null);
     }
@@ -177,51 +195,54 @@ export default function AdminProductsPage() {
   const hasFilters = Boolean(debouncedQuery || selectedCategory);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="eyebrow text-zari-500">Catalogue</p>
-          <h1 className="mt-2 font-display text-h2 text-paper">Products</h1>
-          <div className="rule-zari mt-3 w-12" />
-          <p className="mt-3 text-body-sm text-paper-muted">Manage your product catalog</p>
-        </div>
-        <Link href="/admin/products/new" className={BTN_GOLD}>
-          Add New Product
-        </Link>
-      </div>
+    <div className="space-y-5">
+      <AdminPageHeader
+        eyebrow="Catalogue"
+        title="Products"
+        description="Every product, including the ones hidden from the storefront."
+        actions={
+          <Link href="/admin/products/new" className={BTN_PRIMARY}>
+            Add new product
+          </Link>
+        }
+      />
 
-      {message && (
-        <div
-          role="status"
-          aria-live="polite"
-          className={`banner ${message.type === 'success' ? 'banner-success' : 'banner-error'}`}
-        >
+      {message ? (
+        <p role="status" aria-live="polite" className={bannerClass(message.type)}>
           {message.text}
-        </div>
-      )}
+        </p>
+      ) : null}
 
       {/* Filters */}
-      <div className="border border-ink-700 bg-ink-800 p-4">
-        <div className="flex flex-col gap-3 md:flex-row">
+      <div className={cn(PLATE, 'p-3')}>
+        <div className="flex flex-col gap-3 md:flex-row md:items-end">
           <div className="flex-1">
+            <label htmlFor={searchId} className={LABEL}>
+              Search
+            </label>
             <input
+              id={searchId}
+              name="search"
               type="search"
-              aria-label="Search products"
-              placeholder="Search products..."
+              placeholder="Title or description"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="field-ink py-2"
+              onChange={(event) => setSearchQuery(event.target.value)}
+              className={FIELD}
             />
           </div>
-          <div>
+          <div className="md:w-56">
+            <label htmlFor={categoryId} className={LABEL}>
+              Category
+            </label>
             <select
-              aria-label="Filter by category"
+              id={categoryId}
+              name="category"
               value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="field-ink py-2 md:w-56"
+              onChange={(event) => setSelectedCategory(event.target.value)}
+              className={FIELD}
             >
-              <option value="">All Categories</option>
-              {CATEGORIES.map((category) => (
+              <option value="">All categories</option>
+              {PRODUCT_CATEGORIES.map((category) => (
                 <option key={category} value={category}>
                   {category}
                 </option>
@@ -229,24 +250,23 @@ export default function AdminProductsPage() {
             </select>
           </div>
         </div>
-        <p className="mt-3 text-caption text-paper-muted">
-          This list includes disabled products so they can be edited or switched back on.
-          {disabledCount > 0 &&
-            ` ${disabledCount} on this page ${disabledCount === 1 ? 'is' : 'are'} hidden from the storefront.`}
-        </p>
+        {disabledCount > 0 ? (
+          <p className="num mt-3 text-caption text-paper-muted">
+            {disabledCount} of the products on this page {disabledCount === 1 ? 'is' : 'are'} hidden
+            from the storefront.
+          </p>
+        ) : null}
       </div>
 
-      {/* Products Table */}
-      <div className="border border-ink-700 bg-ink-800">
+      {/* Products table */}
+      <div className={PLATE}>
         {isLoading && products.length === 0 ? (
-          <div className="p-8 text-center">
-            <div className="text-body text-paper-muted">Loading products...</div>
-          </div>
+          <p className="p-6 text-center text-body-sm text-paper-muted">Loading products…</p>
         ) : products.length === 0 ? (
-          <div className="p-8 text-center">
-            <div className="text-body text-paper-muted">
-              {hasFilters ? 'No products match these filters' : 'No products found'}
-            </div>
+          <div className="p-6 text-center">
+            <p className="text-body-sm text-paper-muted">
+              {hasFilters ? 'No products match these filters.' : 'No products yet.'}
+            </p>
             {hasFilters ? (
               <button
                 type="button"
@@ -254,22 +274,28 @@ export default function AdminProductsPage() {
                   setSearchQuery('');
                   setSelectedCategory('');
                 }}
-                className={`mt-4 ${BTN_GHOST}`}
+                className={cn('mt-3', BTN_GHOST)}
               >
-                Clear Filters
+                Clear filters
               </button>
             ) : (
-              <Link href="/admin/products/new" className={`mt-4 ${BTN_GHOST}`}>
-                Add Your First Product
+              <Link href="/admin/products/new" className={cn('mt-3', BTN_GHOST)}>
+                Add your first product
               </Link>
             )}
           </div>
         ) : (
           <div
-            className={`overflow-x-auto transition-opacity duration-fast ease-cloth ${isLoading ? 'opacity-60' : ''}`}
+            className={cn(
+              'overflow-x-auto transition-opacity duration-fast ease-cloth',
+              isLoading && 'opacity-60'
+            )}
           >
             <table className="w-full">
-              <thead className="border-b border-ink-700 bg-ink-900">
+              <caption className="sr-only">
+                Products, including disabled ones, with their category, price and status.
+              </caption>
+              <thead className={TABLE_HEAD}>
                 <tr>
                   <th scope="col" className={TH}>
                     Product
@@ -296,81 +322,55 @@ export default function AdminProductsPage() {
                   const isPending = pendingId === product.id;
 
                   return (
-                    <tr
-                      key={product.id}
-                      className={`transition-colors duration-fast ease-cloth hover:bg-ink-700 ${
-                        product.is_active ? '' : 'bg-ink-900'
-                      }`}
-                    >
-                      <td className="whitespace-nowrap px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          {product.images?.[0] && (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={product.images[0]}
-                              alt={product.title}
-                              className={`h-10 w-10 flex-shrink-0 bg-paper-sunk object-cover ${
-                                product.is_active ? '' : 'opacity-50'
-                              }`}
-                              onError={(e) => {
-                                e.currentTarget.src = '/images/placeholder.png';
-                              }}
-                            />
-                          )}
-                          <div>
-                            <div
-                              className={`text-body-sm font-medium ${product.is_active ? 'text-paper' : 'text-paper-muted'}`}
+                    <tr key={product.id} className={cn(TR, !product.is_active && 'bg-ink-900')}>
+                      {/* The row header is the product, so the other five
+                          cells are announced against its name. */}
+                      <th scope="row" className={cn(TD, 'text-left font-medium')}>
+                        <span className="flex items-center gap-2">
+                          <AdminThumb
+                            src={product.images?.[0]}
+                            alt=""
+                            className="h-8 w-8"
+                            sizes="32px"
+                            dimmed={!product.is_active}
+                          />
+                          <span className="min-w-0">
+                            <span
+                              className={cn(
+                                'block truncate leading-tight',
+                                product.is_active ? 'text-paper' : 'text-paper-muted'
+                              )}
                             >
                               {product.title}
-                            </div>
-                            <div className="text-caption text-paper-muted">{product.handle}</div>
-                            {!product.is_active && (
-                              <div className="mt-1 text-caption text-paper-muted">
-                                Hidden from the storefront
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3">
-                        <span className="inline-block rounded-control border border-ink-700 bg-ink-900 px-2 py-0.5 text-caption text-paper-muted">
-                          {product.category}
+                            </span>
+                            <span className="block truncate leading-tight text-paper-muted">
+                              {product.handle}
+                            </span>
+                          </span>
                         </span>
-                      </td>
-                      <td className="num whitespace-nowrap px-4 py-3 text-body-sm text-paper">
-                        {formatPrice(product.price)}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`eyebrow inline-block rounded-control px-2 py-1 ${
-                              product.is_active ? 'bg-neem text-paper' : 'bg-madder text-paper'
-                            }`}
-                          >
+                      </th>
+                      <td className={TD_MUTED}>{product.category}</td>
+                      <td className={cn(TD, 'num')}>{formatPrice(product.price)}</td>
+                      <td className={TD}>
+                        <span className="flex items-center gap-2">
+                          <span className={product.is_active ? CHIP_ACTIVE : CHIP_INACTIVE}>
                             {product.is_active ? 'Active' : 'Disabled'}
                           </span>
                           <button
                             type="button"
-                            onClick={() =>
-                              handleToggleStatus(product.id, product.is_active, product.title)
-                            }
+                            onClick={() => handleToggleStatus(product)}
                             disabled={isPending}
-                            className={`${CHIP_ACTION} ${
-                              product.is_active
-                                ? 'hover:border-madder hover:bg-madder'
-                                : 'hover:border-neem hover:bg-neem'
-                            }`}
-                            title={product.is_active ? 'Disable product' : 'Enable product'}
+                            className={product.is_active ? CHIP_DANGER : CHIP_POSITIVE}
                           >
                             {product.is_active ? 'Disable' : 'Enable'}
                           </button>
-                        </div>
+                        </span>
                       </td>
-                      <td className="num whitespace-nowrap px-4 py-3 text-caption text-paper-muted">
+                      <td className={cn(TD_MUTED, 'num')}>
                         {new Date(product.created_at).toLocaleDateString('en-IN')}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-body-sm">
-                        <div className="flex items-center gap-3">
+                      <td className={TD}>
+                        <span className="flex items-center gap-3">
                           <Link
                             href={`/admin/products/${product.id}/edit`}
                             className="thread-link-ink text-zari-500"
@@ -379,9 +379,9 @@ export default function AdminProductsPage() {
                           </Link>
                           <button
                             type="button"
-                            onClick={() => handleDeleteProduct(product.id, product.title)}
+                            onClick={() => handleDeleteProduct(product)}
                             disabled={isPending}
-                            className={`${CHIP_ACTION} hover:border-madder hover:bg-madder`}
+                            className={CHIP_DANGER}
                           >
                             Delete
                           </button>
@@ -395,11 +395,12 @@ export default function AdminProductsPage() {
                               View
                             </Link>
                           ) : (
-                            // A real disabled control, not a greyed-out <span>:
-                            // the WCAG exemption for inactive components only
-                            // covers actual controls, and `ink-faint` fell to
-                            // 3.66:1 once the row took its `ink-700` hover.
-                            // `paper-muted` holds 7.14:1 on that ground.
+                            // A real disabled control, not a greyed-out
+                            // <span>: the WCAG exemption for inactive
+                            // components only covers actual controls, and
+                            // `ink-faint` fell to 3.66:1 once the row took its
+                            // `ink-700` hover. `paper-muted` holds 7.14:1 on
+                            // that ground.
                             <button
                               type="button"
                               disabled
@@ -409,7 +410,7 @@ export default function AdminProductsPage() {
                               View
                             </button>
                           )}
-                        </div>
+                        </span>
                       </td>
                     </tr>
                   );
@@ -419,12 +420,12 @@ export default function AdminProductsPage() {
           </div>
         )}
 
-        {total > 0 && (
-          <div className="flex flex-col gap-3 border-t border-ink-700 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        {total > 0 ? (
+          <div className="flex flex-col gap-2 border-t border-ink-700 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="num text-caption text-paper-muted">
               Showing {firstRowNumber}–{lastRowNumber} of {total} product{total === 1 ? '' : 's'}
             </p>
-            {pageCount > 1 && (
+            {pageCount > 1 ? (
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -446,10 +447,12 @@ export default function AdminProductsPage() {
                   Next
                 </button>
               </div>
-            )}
+            ) : null}
           </div>
-        )}
+        ) : null}
       </div>
+
+      <ConfirmDialog {...dialogProps} />
     </div>
   );
 }

@@ -1,15 +1,20 @@
 'use server';
 
-import { addToCart, removeFromCart, updateCartItem,
-  MAX_LINE_QUANTITY
+import { addToCart, getCart, getOrders, placeOrder, removeFromCart, updateCartItem,
+  MAX_LINE_QUANTITY,
+  type CartWithSizes,
+  type PlaceOrderItemInput,
+  type PlacedOrderRow
 } from '@/lib/supabase/api';
+import { createSessionClient } from '@/lib/supabase';
+import type { Order, ShippingAddress } from '@/lib/supabase/types';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 
 /**
  * Cart server actions.
  *
- * Two rules hold everywhere in this file:
+ * Three rules hold everywhere in this file:
  *
  *  1. The cart session id is a `crypto.randomUUID()` written to an **httpOnly**
  *     cookie. It is the only thing standing between a shopper and their cart and
@@ -19,6 +24,13 @@ import { cookies } from 'next/headers';
  *
  *  2. Nothing internal ever reaches the shopper. Every returned `message` is
  *     written for a customer; the underlying cause is logged on the server.
+ *
+ *  3. Every cart write goes through `cartClient()` below — a per-request
+ *     Supabase client that forwards the session id to Postgres as the
+ *     `x-session-id` header. That header is what the row-level security
+ *     policies in `enable-rls-policies.sql` read, so the database enforces the
+ *     same "your cart only" rule the `.eq('session_id', …)` filters express.
+ *     Without it, RLS would see no session at all and reject every write.
  *
  * Every action also has to behave sensibly when Supabase is not configured: the
  * data layer then returns `null`/`false` rather than throwing, which is reported
@@ -112,6 +124,22 @@ function ensureSessionId(): string {
   return sessionId;
 }
 
+/**
+ * A Supabase client that tells Postgres whose cart this is.
+ *
+ * The session id lives in an httpOnly cookie, which Postgres cannot see. This
+ * client carries it as the `x-session-id` request header instead, where
+ * `public.request_session_id()` can read it and the cart_items policies can
+ * scope the row to its owner. The module-level singleton cannot do this: it is
+ * built once at import time and shared by every visitor at once.
+ *
+ * Returns `null` when Supabase is unconfigured, which the data layer already
+ * treats as "cart unavailable".
+ */
+function cartClient(sessionId: string) {
+  return createSessionClient(sessionId);
+}
+
 /** Pages whose server render depends on cart contents. There is no `/cart` route. */
 function revalidateCart(): void {
   revalidatePath('/');
@@ -150,7 +178,10 @@ export async function addItem(
   const sessionId = ensureSessionId();
 
   try {
-    const line = await addToCart({ productId, quantity, size, sessionId });
+    const line = await addToCart(
+      { productId, quantity, size, sessionId },
+      cartClient(sessionId)
+    );
 
     if (!line) {
       // Supabase unconfigured, or the insert was rejected. Either way the
@@ -181,7 +212,7 @@ export async function removeItem(prevState: unknown, lineId: string): Promise<Ca
   }
 
   try {
-    if (!(await removeFromCart(itemId, sessionId))) {
+    if (!(await removeFromCart(itemId, sessionId, cartClient(sessionId)))) {
       return failed(MESSAGES.unavailable);
     }
 
@@ -224,9 +255,11 @@ export async function updateItemQuantity(
     return failed(MESSAGES.missingLine);
   }
 
+  const client = cartClient(sessionId);
+
   try {
     if (!Number.isFinite(requestedQuantity) || requestedQuantity < 1) {
-      if (!(await removeFromCart(itemId, sessionId))) {
+      if (!(await removeFromCart(itemId, sessionId, client))) {
         return failed(MESSAGES.unavailable);
       }
 
@@ -234,12 +267,15 @@ export async function updateItemQuantity(
       return succeeded(MESSAGES.removed);
     }
 
-    const line = await updateCartItem({
-      itemId,
-      quantity: Math.min(requestedQuantity, MAX_LINE_QUANTITY),
-      sessionId,
-      ...(size ? { size } : {})
-    });
+    const line = await updateCartItem(
+      {
+        itemId,
+        quantity: Math.min(requestedQuantity, MAX_LINE_QUANTITY),
+        sessionId,
+        ...(size ? { size } : {})
+      },
+      client
+    );
 
     if (!line) {
       return failed(MESSAGES.unavailable);
@@ -251,4 +287,121 @@ export async function updateItemQuantity(
     logCartFailure('updateItemQuantity', cause);
     return failed(MESSAGES.generic);
   }
+}
+
+/**
+ * Shape checkout sends for one ordered line.
+ *
+ * It carries no money. `placeOrder` re-reads every unit price from the products
+ * table, so this is deliberately the smallest thing that still identifies what
+ * the shopper bought.
+ */
+export interface CheckoutLineInput {
+  productId: string;
+  quantity: number;
+  size?: string;
+  /** The `cart_items.id` this line came from, so only ordered lines are cleared. */
+  cartLineId?: string;
+}
+
+export interface PlaceOrderActionInput {
+  items: CheckoutLineInput[];
+  shippingAddress: ShippingAddress;
+  paymentMethod: string;
+  upiId?: string;
+}
+
+/**
+ * Place the shopper's order, server-side.
+ *
+ * Two things make this the only safe way to check out:
+ *
+ *   * The session id comes from the httpOnly cookie read here, never from the
+ *     request body — so a caller cannot check out against someone else's cart
+ *     or order history by naming their session.
+ *   * The Supabase client is session-scoped, so the `orders` and `order_items`
+ *     inserts carry the `x-session-id` header the row-level security policies
+ *     require.
+ *
+ * Prices are not a parameter and never will be: `placeOrder` derives subtotal,
+ * GST and total from the `products` table with the same `computeCartCost` the
+ * cart drawer uses, so the stored amount is the store's number.
+ *
+ * Throws on failure (expired session, empty cart, withdrawn product, database
+ * error) and returns the created `orders` row on success.
+ */
+export async function placeOrderAction(payload: PlaceOrderActionInput): Promise<PlacedOrderRow> {
+  const sessionId = readSessionId();
+
+  if (!sessionId) {
+    throw new Error('Checkout session expired');
+  }
+
+  const items: PlaceOrderItemInput[] = (payload?.items ?? [])
+    .map(item => ({
+      productId: trimmedString(item?.productId),
+      quantity: clampQuantity(item?.quantity),
+      size: trimmedString(item?.size) || DEFAULT_SIZE,
+      cartLineId: trimmedString(item?.cartLineId) || undefined
+    }))
+    .filter(item => Boolean(item.productId));
+
+  if (items.length === 0) {
+    throw new Error('Cannot place an order with an empty cart');
+  }
+
+  const order = await placeOrder(
+    {
+      sessionId,
+      items,
+      shippingAddress: payload.shippingAddress,
+      paymentMethod: payload.paymentMethod,
+      upiId: payload.upiId
+    },
+    cartClient(sessionId)
+  );
+
+  revalidateCart();
+
+  return order;
+}
+
+// ---------------------------------------------------------------------------
+// Session-scoped reads
+//
+// Once sections 6-7 of enable-rls-policies.sql are applied, Postgres answers a
+// cart_items or orders SELECT with zero rows unless the request carries the
+// `x-session-id` header. A browser using the plain singleton client cannot send
+// it, so these two actions are how the cart drawer, the checkout page and the
+// order history read their own rows from now on.
+// ---------------------------------------------------------------------------
+
+/**
+ * The shopper's cart, read with their own session.
+ *
+ * Drop-in for `getCart(await getCartSessionId())`, minus the round trip: the
+ * session id never leaves the server, so it cannot be swapped for someone
+ * else's. Returns `null` when there is no session, no cart, or no Supabase.
+ */
+export async function getCartForSession(): Promise<CartWithSizes | null> {
+  const sessionId = readSessionId();
+
+  if (!sessionId) return null;
+
+  return getCart(sessionId, cartClient(sessionId));
+}
+
+/**
+ * The order history belonging to this cart session, newest first.
+ *
+ * Returns `[]` when the visitor has no session yet. Anything else — an
+ * unconfigured Supabase, a failed query — throws, exactly as `getOrders` does,
+ * so existing error handling keeps working.
+ */
+export async function getOrdersForSession(): Promise<Order[]> {
+  const sessionId = readSessionId();
+
+  if (!sessionId) return [];
+
+  return getOrders(sessionId, cartClient(sessionId));
 }
