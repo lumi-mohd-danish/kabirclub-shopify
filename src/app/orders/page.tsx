@@ -1,7 +1,13 @@
 'use client';
 
 import { useAuth } from '@/hooks/useAuth';
+import SectionHeading from '@/components/common/SectionHeading';
 import { getCartSessionId } from '@/components/cart/actions';
+import {
+  formatStatusLabel,
+  orderStatusChipClass,
+  paymentStatusChipClass
+} from '@/lib/order-status';
 import { GST_RATE, getOrders } from '@/lib/supabase/api';
 import { Order } from '@/lib/supabase/types';
 import Link from 'next/link';
@@ -108,40 +114,6 @@ export default function OrdersPage() {
   // `document.cookie`. The server action is the only way to read it.
   const getSessionId = (): Promise<string | null> => getCartSessionId();
 
-  // Status chips are `.eyebrow` on a 3px control radius. The palette has no
-  // blue or purple, so the informational states read as strong neutral ink
-  // rather than as an off-system hue: haldi = awaiting action, ink = in
-  // transit, neem = done, madder = failed.
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending':
-        return 'bg-haldi text-ink';
-      case 'confirmed':
-        return 'border border-line-strong bg-paper-sunk text-ink';
-      case 'shipped':
-        return 'bg-ink-900 text-paper';
-      case 'delivered':
-        return 'bg-neem text-paper';
-      case 'cancelled':
-        return 'bg-madder text-paper';
-      default:
-        return 'border border-line bg-paper text-ink-muted';
-    }
-  };
-
-  const getPaymentStatusColor = (status: string) => {
-    switch (status) {
-      case 'paid':
-        return 'bg-neem text-paper';
-      case 'pending':
-        return 'bg-haldi text-ink';
-      case 'failed':
-        return 'bg-madder text-paper';
-      default:
-        return 'border border-line bg-paper text-ink-muted';
-    }
-  };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-IN', {
       year: 'numeric',
@@ -156,7 +128,7 @@ export default function OrdersPage() {
   if (authLoading && !loadingTimeout) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper text-ink">
-        <div className="text-center">
+        <div className="container-page text-center">
           <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-pill border-b-2 border-zari-700"></div>
           <p className="text-lead text-ink-muted">Checking authentication...</p>
         </div>
@@ -167,10 +139,9 @@ export default function OrdersPage() {
   // Timeout state
   if (loadingTimeout) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-paper px-5 text-ink">
-        <div className="text-center">
-          <p className="eyebrow text-ink-muted">Orders</p>
-          <h1 className="mt-3 font-display text-h2 text-ink">Authentication timeout</h1>
+      <div className="flex min-h-screen items-center justify-center bg-paper text-ink">
+        <div className="container-page text-center">
+          <SectionHeading eyebrow="Orders" title="Authentication timeout" as="h1" align="center" />
           <p className="mt-3 text-body text-ink-muted">
             Please refresh the page or try logging in again
           </p>
@@ -190,10 +161,9 @@ export default function OrdersPage() {
   // Auth error state
   if (!isAuthenticated() || !user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-paper px-5 text-ink">
-        <div className="text-center">
-          <p className="eyebrow text-ink-muted">Orders</p>
-          <h1 className="mt-3 font-display text-h2 text-ink">Authentication required</h1>
+      <div className="flex min-h-screen items-center justify-center bg-paper text-ink">
+        <div className="container-page text-center">
+          <SectionHeading eyebrow="Orders" title="Authentication required" as="h1" align="center" />
           <p className="mt-3 text-body text-ink-muted">Please log in to view your orders</p>
           <Link href="/login" className="btn-primary mt-8">
             Go to Login
@@ -206,9 +176,9 @@ export default function OrdersPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper text-ink">
-        <div className="text-center">
+        <div className="container-page text-center">
           <div className="mx-auto mb-5 h-16 w-16 animate-spin rounded-pill border-b-2 border-zari-700"></div>
-          <h1 className="font-display text-h2 text-ink">Loading your orders...</h1>
+          <SectionHeading eyebrow="Orders" title="Loading your orders..." as="h1" align="center" />
         </div>
       </div>
     );
@@ -217,12 +187,12 @@ export default function OrdersPage() {
   // Error state
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-paper px-5 text-ink">
-        <div className="text-center">
+      <div className="flex min-h-screen items-center justify-center bg-paper text-ink">
+        <div className="container-page text-center">
           <div className="mb-5 text-6xl" aria-hidden="true">
             &#9888;&#65039;
           </div>
-          <h1 className="font-display text-h2 text-ink">Something went wrong</h1>
+          <SectionHeading eyebrow="Orders" title="Something went wrong" as="h1" align="center" />
           <p role="alert" className="mt-3 text-body text-madder">
             {error}
           </p>
@@ -242,14 +212,13 @@ export default function OrdersPage() {
   // No orders state
   if (orders.length === 0) {
     return (
-      <div className="min-h-screen bg-paper py-16 text-ink md:py-24">
-        <div className="mx-auto max-w-6xl px-5 md:px-8">
+      <div className="min-h-screen bg-paper text-ink">
+        <div className="section container-page">
           <div className="text-center">
             <div className="mb-5 text-6xl" aria-hidden="true">
               &#128230;
             </div>
-            <p className="eyebrow text-ink-muted">Orders</p>
-            <h1 className="mt-3 font-display text-h1 text-ink">No Orders Yet</h1>
+            <SectionHeading eyebrow="Orders" title="No Orders Yet" as="h1" align="center" />
             <p className="mx-auto mt-4 max-w-[46ch] text-body text-ink-muted">
               You haven&apos;t placed any orders yet. Start shopping to see your orders here!
             </p>
@@ -263,13 +232,11 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-paper py-16 text-ink md:py-24">
-      <div className="mx-auto max-w-6xl px-5 md:px-8">
+    <div className="min-h-screen bg-paper text-ink">
+      <div className="section container-page">
         {/* Header */}
         <div className="mb-10 text-center">
-          <p className="eyebrow text-ink-muted">Account</p>
-          <div className="rule-zari mx-auto mt-4 w-16" />
-          <h1 className="mt-5 font-display text-h1 text-ink">My Orders</h1>
+          <SectionHeading eyebrow="Account" title="My Orders" as="h1" align="center" />
           <p className="mt-3 text-body text-ink-muted">
             Track your order status and view order details
           </p>
@@ -303,15 +270,11 @@ export default function OrdersPage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <span
-                    className={`eyebrow inline-block rounded-control px-2.5 py-1.5 ${getStatusColor(order.orderStatus)}`}
-                  >
-                    {order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1)}
+                  <span className={orderStatusChipClass(order.orderStatus)}>
+                    {formatStatusLabel(order.orderStatus)}
                   </span>
-                  <span
-                    className={`eyebrow inline-block rounded-control px-2.5 py-1.5 ${getPaymentStatusColor(order.paymentStatus)}`}
-                  >
-                    {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
+                  <span className={paymentStatusChipClass(order.paymentStatus)}>
+                    {formatStatusLabel(order.paymentStatus)}
                   </span>
                 </div>
               </div>
@@ -345,7 +308,7 @@ export default function OrdersPage() {
               </div>
 
               {/* Order Summary */}
-              <div className="mb-6 rounded-plate border border-line bg-paper-sunk p-5">
+              <div className="mb-6 rounded-plate border border-line bg-paper-raised p-5">
                 <p className="eyebrow mb-3 text-ink-muted">Summary</p>
                 <div className="flex items-center justify-between gap-4 py-1">
                   <span className="text-body text-ink-muted">Subtotal</span>

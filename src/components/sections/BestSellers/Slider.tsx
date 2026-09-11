@@ -15,8 +15,6 @@ import 'swiper/css';
 import 'swiper/css/effect-fade';
 import 'swiper/css/navigation';
 
-import { useMediaQuery } from 'react-responsive';
-
 // server actions
 import { getProducts } from './getProducts';
 
@@ -28,8 +26,6 @@ import { Collection } from '.';
 import ProductCard from '@/components/layout/ProductCard';
 
 const Slider = ({ collection }: { collection: Collection }) => {
-  const isSm = useMediaQuery({ query: '(min-width: 480px)' });
-
   const [products, setProducts] = useState<Product[]>([]);
 
   // swiper
@@ -104,11 +100,13 @@ const Slider = ({ collection }: { collection: Collection }) => {
       >
         {products.map((product, i) => (
           <SwiperSlide key={product.handle} className="!w-[180px] sm:!w-[280px]">
-            <ProductCard
-              product={product}
-              delay={i > (isSm ? 2 : 1) ? 0 : i * 0.5}
-              duration={i > (isSm ? 2 : 1) ? 0 : undefined}
-            />
+            {/*
+              The shared cloth reveal: 40ms per plate, capped at the seventh, so
+              the whole row is in within ~240ms of the first. Identical to the
+              grid directly below this carousel on the home page. The duration
+              override is gone — every plate gets ProductCard's own 520ms.
+            */}
+            <ProductCard product={product} delay={Math.min(i, 6) * 0.04} />
           </SwiperSlide>
         ))}
       </Swiper>

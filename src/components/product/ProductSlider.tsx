@@ -23,7 +23,13 @@ interface ProductSliderProps {
 const SWIPER_THEME = {
   '--swiper-theme-color': '#1C1714',
   '--swiper-navigation-size': '24px',
-  '--swiper-pagination-bullet-inactive-color': '#8A7C6C'
+  // The bullets are the only indicator of position in the gallery, so they are a
+  // UI component and owe 3:1 (WCAG 1.4.11). Swiper ships inactive bullets at
+  // `opacity: 0.2`, which caps them at roughly 1.2:1 on any ground no matter what
+  // colour they are painted — so the opacity is forced back to 1 and the colour
+  // does the work: `ink-muted` is 5.10:1 on the `paper-sunk` mat behind the plate.
+  '--swiper-pagination-bullet-inactive-color': '#6B5F52',
+  '--swiper-pagination-bullet-inactive-opacity': '1'
 } as React.CSSProperties;
 
 export default function ProductSlider({ product }: ProductSliderProps) {

@@ -178,8 +178,10 @@ export default function ProductDescription({ product }: ProductDescriptionProps)
           currencyCode="INR"
           className="num text-price-lg text-zari-700"
         />
+        {/* rounded-control, not rounded-pill: this chip sits directly above the
+            size chips, and the pill radius is reserved for avatars and badges. */}
         {product.category && (
-          <span className="w-fit rounded-pill border border-line bg-paper-sunk px-3 py-1 text-body-sm capitalize text-ink-muted">
+          <span className="w-fit rounded-control border border-line bg-paper-sunk px-3 py-1 text-body-sm capitalize text-ink-muted">
             {product.category}
           </span>
         )}
@@ -351,8 +353,12 @@ export default function ProductDescription({ product }: ProductDescriptionProps)
 
       {/* Authentication Notice */}
       {!isAuthLoading && !signedIn && (
-        <div className="rounded-control border border-line bg-paper-sunk p-4">
-          {/* 16px, not 13px: `zari-700` is only AA from 16px up, and body copy
+        <div className="rounded-control border border-line bg-paper p-4">
+          {/* The well is `bg-paper`, not `bg-paper-sunk`: `zari-700` is 4.85:1 on
+              paper but only 4.42:1 on paper-sunk, which fails AA — paper-sunk is
+              the image mat, not a text panel. The hairline, not the fill, is what
+              makes this read as a well on the `paper-raised` plate.
+              16px, not 13px: `zari-700` is only AA from 16px up, and body copy
               has a 16px floor in this system anyway. */}
           <p className="text-center text-body text-ink-muted">
             Please{' '}

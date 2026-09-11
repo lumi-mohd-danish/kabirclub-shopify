@@ -87,6 +87,21 @@ const normalise = (status: string | null | undefined): string =>
   typeof status === 'string' ? status.trim().toLowerCase() : '';
 
 /**
+ * Look a normalised status up in a chip map, falling back to the unknown chip.
+ *
+ * The `typeof === 'string'` guard is load-bearing, not defensive noise: these
+ * maps are object literals, so they inherit Object.prototype, and a status of
+ * 'constructor' would resolve to the Object constructor rather than to
+ * undefined — which a plain `?? fallback` would happily pass straight through
+ * into the class attribute. Statuses arrive as raw database strings, so the
+ * key is not guaranteed to be one of ours.
+ */
+const lookupChip = (map: Record<string, string>, status: string | null | undefined): string => {
+  const state = map[normalise(status)];
+  return `${CHIP_BASE} ${typeof state === 'string' ? state : CHIP_UNKNOWN}`;
+};
+
+/**
  * Complete chip class string for an order status. Call sites stay declarative:
  *
  *   <span className={orderStatusChipClass(order.orderStatus)}>
@@ -98,8 +113,7 @@ const normalise = (status: string | null | undefined): string =>
  * appended freely — they do not collide with anything emitted here.
  */
 export function orderStatusChipClass(status: string | null | undefined): string {
-  const state = ORDER_STATUS_CHIPS[normalise(status) as OrderStatus] ?? CHIP_UNKNOWN;
-  return `${CHIP_BASE} ${state}`;
+  return lookupChip(ORDER_STATUS_CHIPS, status);
 }
 
 /**
@@ -107,8 +121,7 @@ export function orderStatusChipClass(status: string | null | undefined): string 
  * `orderStatusChipClass`.
  */
 export function paymentStatusChipClass(status: string | null | undefined): string {
-  const state = PAYMENT_STATUS_CHIPS[normalise(status) as PaymentStatus] ?? CHIP_UNKNOWN;
-  return `${CHIP_BASE} ${state}`;
+  return lookupChip(PAYMENT_STATUS_CHIPS, status);
 }
 
 /**

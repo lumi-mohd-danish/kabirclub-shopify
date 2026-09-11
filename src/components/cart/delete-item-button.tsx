@@ -51,19 +51,27 @@ export function DeleteItemButton({
   };
 
   return (
+    // The target is 24x24 — the WCAG 2.2 SC 2.5.8 floor — while the disc keeps
+    // its 20px drawing. The chip is absolutely positioned over the product
+    // thumbnail, so no spacing exception applies and the padding has to be real
+    // hit area. `-m-0.5` gives the extra 2px back to the layout, so the disc
+    // still lands exactly where it did before.
     <button
       onClick={handleClick}
       disabled={isPending}
       aria-busy={isPending}
-      // The remove chip sits on the drawer's INK ground: an ink-800 disc with
-      // an ink-600 hairline at rest, resolving to the `madder` state colour on
-      // hover and focus (paper on madder is 6.61:1). Destructive is the one
-      // job madder has; it is never decoration.
-      className="flex h-5 w-5 items-center justify-center rounded-pill border border-ink-600 bg-ink-800 text-paper-muted transition-colors duration-fast ease-cloth hover:border-madder hover:bg-madder hover:text-paper focus-visible:border-madder focus-visible:bg-madder focus-visible:text-paper disabled:cursor-not-allowed disabled:opacity-50"
+      className="group -m-0.5 flex h-6 w-6 items-center justify-center rounded-pill disabled:cursor-not-allowed disabled:opacity-50"
       type="button"
       aria-label={`Remove ${item.merchandise.product.title} from cart`}
     >
-      <span aria-hidden="true" className="text-caption leading-none">
+      {/* The remove chip sits on the drawer's INK ground: an ink-800 disc with
+          an ink-600 hairline at rest, resolving to the `madder` state colour on
+          hover and focus (paper on madder is 6.61:1). Destructive is the one
+          job madder has; it is never decoration. */}
+      <span
+        aria-hidden="true"
+        className="flex h-5 w-5 items-center justify-center rounded-pill border border-ink-600 bg-ink-800 text-caption leading-none text-paper-muted transition-colors duration-fast ease-cloth group-hover:border-madder group-hover:bg-madder group-hover:text-paper group-focus-visible:border-madder group-focus-visible:bg-madder group-focus-visible:text-paper"
+      >
         ×
       </span>
     </button>

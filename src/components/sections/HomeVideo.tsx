@@ -8,11 +8,16 @@ import Link from 'next/link';
 const HERO_POSTER = '/images/hero-poster.jpg';
 
 /**
- * Tailwind's `sm` breakpoint is `min-width: 640px`, so the two source queries
- * below line up exactly with the rest of the layout and never both match.
+ * These MUST track the breakpoint at which the film plate itself flips from
+ * portrait to landscape — that is `lg:aspect-[16/11]` on the plate below, and
+ * Tailwind's `lg` is `min-width: 1024px` (the config declares no custom
+ * `screens`). Switching the sources any earlier pours the landscape clip into a
+ * still-portrait 4/5 plate and `object-cover` crops the subject out of frame.
+ * The two queries are exact complements, so they never both match, and neither
+ * matches under reduced motion — no file is fetched and the poster stays.
  */
-const MOBILE_MEDIA = '(prefers-reduced-motion: no-preference) and (max-width: 639.98px)';
-const DESKTOP_MEDIA = '(prefers-reduced-motion: no-preference) and (min-width: 640px)';
+const MOBILE_MEDIA = '(prefers-reduced-motion: no-preference) and (max-width: 1023.98px)';
+const DESKTOP_MEDIA = '(prefers-reduced-motion: no-preference) and (min-width: 1024px)';
 
 /**
  * The hero is an editorial plate on an ink band: type sits on the ground BESIDE
@@ -64,7 +69,9 @@ const HomeVideo = () => {
               480x854 (portrait, for phones) and clothing-2 is 854x480 (landscape,
               for desktop). Serving them the other way round crops the subject out
               of frame. Both are ~700KB, so orientation is the only thing that
-              should decide. When the
+              should decide — and what decides it is the plate's own aspect
+              ratio, which is why these queries break at `lg` (1024px), where
+              `lg:aspect-[16/11]` below turns the plate landscape. When the
               visitor prefers reduced motion neither query matches, no video is
               downloaded at all and the poster stays on screen as a still hero.
             */}

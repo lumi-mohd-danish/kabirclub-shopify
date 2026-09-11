@@ -17,8 +17,12 @@ interface ImageUploadProps {
 // the ink ground. Dragging over it takes the gold edge — the thread again — and
 // lifts the well; there is no gold fill, which stays reserved for the one
 // primary action on the surrounding page.
+//
+// The padding lives on the inner control, not on this well, so the whole area
+// inside the hairline belongs to the real <button> and no strip of it is a
+// dead click zone.
 const DROPZONE =
-  'relative cursor-pointer rounded-control border border-dashed p-6 text-center transition-colors duration-fast ease-cloth';
+  'relative rounded-control border border-dashed transition-colors duration-fast ease-cloth';
 const DROPZONE_IDLE = 'border-ink-faint bg-transparent hover:border-paper-muted';
 const DROPZONE_ACTIVE = 'border-zari-500 bg-ink-700';
 
@@ -87,11 +91,13 @@ export default function ImageUpload({
       e.preventDefault();
       setDragActive(false);
 
+      if (isUploading) return;
+
       if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
         handleFiles(e.dataTransfer.files);
       }
     },
-    [handleFiles]
+    [handleFiles, isUploading]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -133,24 +139,27 @@ export default function ImageUpload({
       {canUploadMore && (
         <div
           className={`${DROPZONE} ${dragActive ? DROPZONE_ACTIVE : DROPZONE_IDLE} ${
-            isUploading ? 'pointer-events-none opacity-50' : ''
+            isUploading ? 'opacity-50' : ''
           }`}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
-          onClick={openFileDialog}
         >
+          {/* The input stays out of the tab order on purpose: the <button>
+              below is the control, so there is exactly one stop here and it is
+              the one that is visible and can take the focus ring. */}
           <input
             ref={fileInputRef}
             type="file"
             multiple={maxImages > 1}
             accept="image/*"
             onChange={handleFileSelect}
+            tabIndex={-1}
             className="hidden"
           />
 
           {isUploading ? (
-            <div className="space-y-4">
+            <div className="space-y-4 p-6 text-center">
               <div className="mx-auto h-8 w-8 text-zari-500">
                 <svg className="animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                   <circle
@@ -165,7 +174,7 @@ export default function ImageUpload({
                     className="opacity-75"
                     fill="currentColor"
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
+                  />
                 </svg>
               </div>
               <div>
@@ -180,10 +189,7 @@ export default function ImageUpload({
                 )}
                 <button
                   type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    cancelUpload();
-                  }}
+                  onClick={cancelUpload}
                   className="mt-3 rounded-control border border-ink-faint px-2 py-1 text-caption font-medium text-paper transition-colors duration-fast ease-cloth hover:border-madder hover:bg-madder active:translate-y-px"
                 >
                   Cancel
@@ -191,8 +197,15 @@ export default function ImageUpload({
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
-              <div className="mx-auto h-8 w-8 text-paper-muted">
+            // The one real control in this component. It was a <div onClick>
+            // with the file input hidden behind it, which left the whole
+            // uploader unreachable by keyboard.
+            <button
+              type="button"
+              onClick={openFileDialog}
+              className="flex w-full cursor-pointer flex-col items-center gap-3 rounded-control p-6 text-center"
+            >
+              <span className="block h-8 w-8 text-paper-muted">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path
                     strokeLinecap="round"
@@ -201,17 +214,17 @@ export default function ImageUpload({
                     d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                   />
                 </svg>
-              </div>
-              <div>
-                <p className="text-body-sm font-medium text-paper">
+              </span>
+              <span className="block">
+                <span className="block text-body-sm font-medium text-paper">
                   {dragActive ? 'Drop images here' : 'Click to upload or drag and drop'}
-                </p>
-                <p className="mt-1 text-caption text-paper-muted">
+                </span>
+                <span className="mt-1 block text-caption text-paper-muted">
                   PNG, JPG, GIF, WebP up to 32MB
                   {maxImages > 1 && ` (${currentImages.length}/${maxImages} uploaded)`}
-                </p>
-              </div>
-            </div>
+                </span>
+              </span>
+            </button>
           )}
         </div>
       )}

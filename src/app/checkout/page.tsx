@@ -10,6 +10,7 @@ import {
   type PlacedOrderRow
 } from '@/lib/supabase/api';
 import { getCartSessionId } from '@/components/cart/actions';
+import SectionHeading from '@/components/common/SectionHeading';
 import type { ShippingAddress } from '@/lib/supabase/types';
 import { formatPrice } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
@@ -180,6 +181,30 @@ const isUsableLine = (line: CartLineWithSize | undefined): line is CartLineWithS
   Number.isFinite(Number(line?.merchandise?.product?.price));
 
 const gstLabel = `GST (${Math.round(GST_RATE * 100)}%)`;
+
+/**
+ * State iconography, not decoration. The confirmation step used a ✅ emoji at
+ * `text-6xl` — a size that is not on the type scale, and a glyph whose colour
+ * and weight the system cannot control. This is the same badge the root error
+ * boundary uses (src/app/error.tsx): a pill-cut hairline over the sunk mat,
+ * holding a 1.5px stroked glyph that takes its colour from the state token.
+ */
+function CheckIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-7 w-7"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m4.5 12.6 5.1 5.1L19.5 6.6" />
+    </svg>
+  );
+}
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -403,9 +428,12 @@ export default function CheckoutPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper text-ink">
-        <div className="text-center">
-          <div className="mx-auto mb-5 h-16 w-16 animate-spin rounded-pill border-b-2 border-zari-700"></div>
-          <h1 className="font-display text-h2 text-ink">Loading your cart...</h1>
+        <div className="container-page flex flex-col items-center">
+          <div
+            className="mb-5 h-16 w-16 animate-spin rounded-pill border-b-2 border-zari-700"
+            aria-hidden="true"
+          />
+          <SectionHeading eyebrow="Checkout" title="Loading your cart" as="h1" align="center" />
         </div>
       </div>
     );
@@ -416,11 +444,13 @@ export default function CheckoutPage() {
   if (currentStep !== 'confirmation' && (cartLines.length === 0 || costBreakdown.total <= 0)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper text-ink">
-        <div className="px-5 text-center">
-          <p className="eyebrow text-ink-muted">Checkout</p>
-          <h1 className="mt-3 font-display text-h2 text-ink">
-            {loadError ? 'We could not load your cart' : 'Your cart is empty'}
-          </h1>
+        <div className="container-page text-center">
+          <SectionHeading
+            eyebrow="Checkout"
+            title={loadError ? 'We could not load your cart' : 'Your cart is empty'}
+            as="h1"
+            align="center"
+          />
           <p className="mx-auto mt-4 max-w-[46ch] text-body text-ink-muted">
             {loadError ?? 'Add some items to your cart to proceed with checkout'}
           </p>
@@ -440,7 +470,11 @@ export default function CheckoutPage() {
   }
 
   const orderSummary = (
-    <div className="mb-6 rounded-plate border border-line bg-paper-sunk p-5">
+    // paper-raised, not paper-sunk: the Total below is `text-price` gold, and
+    // text-price is clamp(18..22px) at weight 500, which WCAG counts as normal
+    // text. zari-700 is 4.42:1 on paper-sunk (fails) and 5.25:1 on
+    // paper-raised. paper-sunk is the image mat, never a panel carrying gold.
+    <div className="mb-6 rounded-plate border border-line bg-paper-raised p-5">
       <h3 className="eyebrow mb-4 text-ink-muted">Order Summary</h3>
       <div className="space-y-2 text-body text-ink">
         {cartLines.map((line) => {
@@ -484,12 +518,14 @@ export default function CheckoutPage() {
   );
 
   return (
-    <div className="min-h-screen bg-paper py-16 text-ink md:py-24">
-      <div className="mx-auto max-w-4xl px-5 md:px-8">
+    <div className="min-h-screen bg-paper text-ink">
+      {/* `.section` owns the vertical rhythm (64/96/128) and `.container-page`
+          the one horizontal inset — no hand-rolled padding ladder, no fifth
+          max-width competing with the four the primitive replaced. */}
+      <div className="section container-page">
         {/* Header */}
-        <div className="mb-10 text-center">
-          <div className="rule-zari mx-auto w-16" />
-          <h1 className="mt-5 font-display text-h1 text-ink">Checkout</h1>
+        <div className="mb-10">
+          <SectionHeading eyebrow="Your order" title="Checkout" as="h1" align="center" />
           <ol aria-label="Checkout progress" className="mt-6 flex justify-center gap-4">
             {CHECKOUT_STEPS.map((step, index) => (
               <li
@@ -515,7 +551,7 @@ export default function CheckoutPage() {
             onSubmit={handleAddressSubmit}
             className="rounded-plate border border-line bg-paper-raised p-6 md:p-8"
           >
-            <h2 className="mb-6 font-display text-h2 text-ink">Shipping Address</h2>
+            <SectionHeading eyebrow="Step 1 of 3" title="Shipping address" className="mb-6" />
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {renderAddressField({ field: 'fullName', autoComplete: 'name' })}
               {renderAddressField({
@@ -560,7 +596,7 @@ export default function CheckoutPage() {
             onSubmit={handlePlaceOrder}
             className="rounded-plate border border-line bg-paper-raised p-6 md:p-8"
           >
-            <h2 className="mb-6 font-display text-h2 text-ink">Payment Method</h2>
+            <SectionHeading eyebrow="Step 2 of 3" title="Payment method" className="mb-6" />
 
             <fieldset className="mb-6 space-y-4">
               <legend className="sr-only">Choose how you want to pay</legend>
@@ -614,7 +650,7 @@ export default function CheckoutPage() {
                   type="text"
                   value={STORE_UPI_ID}
                   readOnly
-                  className="field num bg-paper-sunk"
+                  className="field num bg-paper-sunk tracking-wide"
                 />
                 <p className="mt-2 text-body-sm text-ink-muted">
                   This is our registered UPI ID for payments
@@ -626,7 +662,11 @@ export default function CheckoutPage() {
                   <div className="flex flex-col items-center gap-5">
                     <div className="w-full max-w-xs rounded-plate border border-line bg-paper-raised p-5 text-center">
                       <div className="eyebrow text-ink-muted">Pay to</div>
-                      <div className="mt-2 break-all font-mono text-body text-ink">
+                      {/* `.num` + tracking-wide, not font-mono: a third
+                          typeface has no place in a two-face system, and what
+                          the UPI id actually needs is tabular figures and air
+                          between the characters. */}
+                      <div className="num mt-2 break-all text-body tracking-wide text-ink">
                         {STORE_UPI_ID}
                       </div>
                       <div className="num mt-3 text-price text-zari-700">
@@ -681,7 +721,10 @@ export default function CheckoutPage() {
             {orderSummary}
 
             {/* Shipping recap, so the shopper can check the address before paying */}
-            <div className="mb-6 rounded-plate border border-line bg-paper-sunk p-5">
+            {/* paper-raised for the same reason as the summary above: the Edit
+                control is zari-700 at 16px, and an interactive control on the
+                purchase path cannot sit at 4.42:1. */}
+            <div className="mb-6 rounded-plate border border-line bg-paper-raised p-5">
               <div className="mb-3 flex items-center justify-between gap-4">
                 <h3 className="eyebrow text-ink-muted">Delivering to</h3>
                 <button
@@ -711,11 +754,11 @@ export default function CheckoutPage() {
               </address>
             </div>
 
+            {/* The shared banner recipe. It sets no text colour on purpose —
+                the copy inherits ink here (13.1:1); `text-madder` on the tint
+                was the old hand-rolled version and is not portable to ink. */}
             {orderError ? (
-              <p
-                role="alert"
-                className="mb-6 rounded-control border border-madder bg-madder/10 px-4 py-3 text-body-sm text-madder"
-              >
+              <p role="alert" className="banner banner-error mb-6">
                 {orderError}
               </p>
             ) : null}
@@ -745,11 +788,10 @@ export default function CheckoutPage() {
         {/* Step 3: Order Confirmation */}
         {currentStep === 'confirmation' && (
           <div className="rounded-plate border border-line bg-paper-raised p-8 text-center md:p-10">
-            <div className="mb-5 text-6xl" aria-hidden="true">
-              ✅
-            </div>
-            <p className="eyebrow text-ink-muted">Confirmed</p>
-            <h2 className="mt-3 font-display text-h2 text-ink">Order Placed Successfully!</h2>
+            <span className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-pill border border-line-strong bg-paper-sunk text-neem">
+              <CheckIcon />
+            </span>
+            <SectionHeading eyebrow="Confirmed" title="Order placed successfully" align="center" />
             <p className="mx-auto mt-4 max-w-[46ch] text-body text-ink-muted">
               Thank you for your order. We&apos;ll process it and ship it to your address soon.
             </p>
@@ -757,7 +799,7 @@ export default function CheckoutPage() {
               <dl className="mx-auto my-8 max-w-sm space-y-3 text-body-sm">
                 <div className="flex items-center justify-between gap-4">
                   <dt className="text-ink-muted">Order reference</dt>
-                  <dd className="num font-mono text-ink">
+                  <dd className="num tracking-wide text-ink">
                     {placedOrder.id.slice(0, 8).toUpperCase()}
                   </dd>
                 </div>

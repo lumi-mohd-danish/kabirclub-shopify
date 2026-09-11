@@ -1,32 +1,18 @@
 'use client';
 
 import { useAuth } from '@/hooks/useAuth';
+import SectionHeading from '@/components/common/SectionHeading';
 import { getCartSessionId } from '@/components/cart/actions';
+import { formatStatusLabel, orderStatusChipClass } from '@/lib/order-status';
 import { getOrders } from '@/lib/supabase/api';
 import { Order } from '@/lib/supabase/types';
+import { formatPrice } from '@/lib/utils';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
 // Force dynamic rendering to avoid localStorage issues
 export const dynamic = 'force-dynamic';
-
-/** Order status -> a state token. Chips are `.eyebrow` on a 3px control radius:
- *  neem = delivered, haldi = awaiting action, ink = in transit, madder = failed.
- *  There is no blue/purple in the palette, so "in transit" reads as strong
- *  neutral ink rather than as an off-system hue. */
-const getStatusChipClass = (status: string): string => {
-  switch (status) {
-    case 'delivered':
-      return 'bg-neem text-paper';
-    case 'shipped':
-      return 'bg-ink-900 text-paper';
-    case 'confirmed':
-      return 'bg-haldi text-ink';
-    default:
-      return 'border border-line-strong bg-paper-sunk text-ink-muted';
-  }
-};
 
 export default function ProfilePage() {
   const { user, logout, isAuthenticated, isLoading: authLoading } = useAuth();
@@ -103,7 +89,7 @@ export default function ProfilePage() {
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-paper text-ink">
-        <div className="text-center">
+        <div className="container-page text-center">
           <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-pill border-b-2 border-zari-700"></div>
           <p className="text-lead text-ink-muted">Loading your profile...</p>
         </div>
@@ -114,10 +100,14 @@ export default function ProfilePage() {
   // Auth error state
   if (!isAuthenticated() || !user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-paper px-5 text-ink">
-        <div className="text-center">
-          <p className="eyebrow text-ink-muted">Account</p>
-          <h1 className="mt-3 font-display text-h2 text-ink">Authentication required</h1>
+      <div className="flex min-h-screen items-center justify-center bg-paper text-ink">
+        <div className="container-page text-center">
+          <SectionHeading
+            eyebrow="Account"
+            title="Authentication required"
+            as="h1"
+            align="center"
+          />
           <p className="mt-3 text-body text-ink-muted">Please log in to view your profile</p>
           <button onClick={() => router.push('/login')} className="btn-primary mt-8">
             Go to Login
@@ -128,13 +118,11 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-paper py-16 text-ink md:py-24">
-      <div className="mx-auto max-w-4xl px-5 md:px-8">
+    <div className="min-h-screen bg-paper text-ink">
+      <div className="section container-page">
         {/* Header */}
         <div className="mb-10 text-center">
-          <p className="eyebrow text-ink-muted">Account</p>
-          <div className="rule-zari mx-auto mt-4 w-16" />
-          <h1 className="mt-5 font-display text-h1 text-ink">My Profile</h1>
+          <SectionHeading eyebrow="Account" title="My Profile" as="h1" align="center" />
           <p className="mt-3 text-body text-ink-muted">
             Manage your account and view your information
           </p>
@@ -157,7 +145,12 @@ export default function ProfilePage() {
           <div className="lg:col-span-2">
             <div className="rounded-plate border border-line bg-paper-raised p-6 md:p-8">
               <div className="mb-6 flex items-center justify-between gap-4">
-                <h2 className="font-display text-h2 text-ink">Profile Information</h2>
+                <SectionHeading
+                  eyebrow="Details"
+                  title="Profile Information"
+                  as="h2"
+                  density="compact"
+                />
                 <button
                   onClick={() => setIsEditing(!isEditing)}
                   className={`${isEditing ? 'btn-secondary' : 'btn-primary'} shrink-0 px-5 py-2.5 text-body-sm`}
@@ -266,8 +259,13 @@ export default function ProfilePage() {
 
             {/* Quick Actions */}
             <div className="mt-6 rounded-plate border border-line bg-paper-raised p-6 md:p-8">
-              <p className="eyebrow text-ink-muted">Shortcuts</p>
-              <h3 className="mb-5 mt-2 text-h3 text-ink">Quick Actions</h3>
+              <SectionHeading
+                eyebrow="Shortcuts"
+                title="Quick Actions"
+                as="h3"
+                density="compact"
+                className="mb-5"
+              />
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Link
                   href="/orders"
@@ -343,8 +341,13 @@ export default function ProfilePage() {
 
             {/* Account Stats */}
             <div className="rounded-plate border border-line bg-paper-raised p-6">
-              <p className="eyebrow text-ink-muted">Overview</p>
-              <h3 className="mb-4 mt-2 text-h3 text-ink">Account Stats</h3>
+              <SectionHeading
+                eyebrow="Overview"
+                title="Account Stats"
+                as="h3"
+                density="compact"
+                className="mb-4"
+              />
               <div className="space-y-3">
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-body text-ink-muted">Total Orders</span>
@@ -361,8 +364,13 @@ export default function ProfilePage() {
 
             {/* Account Actions */}
             <div className="rounded-plate border border-line bg-paper-raised p-6">
-              <p className="eyebrow text-ink-muted">Session</p>
-              <h3 className="mb-4 mt-2 text-h3 text-ink">Account Actions</h3>
+              <SectionHeading
+                eyebrow="Session"
+                title="Account Actions"
+                as="h3"
+                density="compact"
+                className="mb-4"
+              />
               <button
                 onClick={handleLogout}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-control border border-madder bg-transparent px-8 py-4 text-body font-medium leading-none text-madder transition-colors duration-fast ease-cloth hover:bg-madder hover:text-paper active:translate-y-px"
@@ -391,10 +399,7 @@ export default function ProfilePage() {
         {orders.length > 0 && (
           <div className="mt-6 rounded-plate border border-line bg-paper-raised p-6 md:p-8">
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="eyebrow text-ink-muted">History</p>
-                <h3 className="mt-2 text-h3 text-ink">Recent Orders</h3>
-              </div>
+              <SectionHeading eyebrow="History" title="Recent Orders" as="h3" density="compact" />
               <Link href="/orders" className="thread-link text-body font-medium text-zari-700">
                 View All
               </Link>
@@ -414,11 +419,9 @@ export default function ProfilePage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="num text-price text-zari-700">&#8377;{order.totalAmount}</p>
-                    <span
-                      className={`eyebrow mt-2 inline-block rounded-control px-2.5 py-1 ${getStatusChipClass(order.orderStatus)}`}
-                    >
-                      {order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1)}
+                    <p className="num text-price text-zari-700">{formatPrice(order.totalAmount)}</p>
+                    <span className={`${orderStatusChipClass(order.orderStatus)} mt-2`}>
+                      {formatStatusLabel(order.orderStatus)}
                     </span>
                   </div>
                 </div>

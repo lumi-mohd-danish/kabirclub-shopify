@@ -194,9 +194,7 @@ export default function AdminProductsPage() {
         <div
           role="status"
           aria-live="polite"
-          className={`px-4 py-3 text-body-sm ${
-            message.type === 'success' ? 'bg-neem text-paper' : 'bg-madder text-paper'
-          }`}
+          className={`banner ${message.type === 'success' ? 'banner-success' : 'banner-error'}`}
         >
           {message.text}
         </div>
@@ -397,12 +395,19 @@ export default function AdminProductsPage() {
                               View
                             </Link>
                           ) : (
-                            <span
-                              className="cursor-not-allowed text-ink-faint"
+                            // A real disabled control, not a greyed-out <span>:
+                            // the WCAG exemption for inactive components only
+                            // covers actual controls, and `ink-faint` fell to
+                            // 3.66:1 once the row took its `ink-700` hover.
+                            // `paper-muted` holds 7.14:1 on that ground.
+                            <button
+                              type="button"
+                              disabled
+                              className="cursor-not-allowed text-paper-muted"
                               title="Enable this product to open it on the storefront"
                             >
                               View
-                            </span>
+                            </button>
                           )}
                         </div>
                       </td>

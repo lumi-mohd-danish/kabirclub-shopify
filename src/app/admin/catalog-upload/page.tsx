@@ -195,9 +195,7 @@ export default function CatalogUploadPage() {
         <div
           role="status"
           aria-live="polite"
-          className={`px-4 py-3 text-body-sm ${
-            message.type === 'success' ? 'bg-neem text-paper' : 'bg-madder text-paper'
-          }`}
+          className={`banner ${message.type === 'success' ? 'banner-success' : 'banner-error'}`}
         >
           {message.text}
         </div>
