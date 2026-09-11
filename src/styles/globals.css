@@ -148,48 +148,33 @@
      Compositor-only (scaleX, not width), which is what makes will-change
      honest. Thickness is parameterised by --thread-h.
      `.thread-link` is the paper variant (zari-700); use `.thread-link-ink`
-     on ink grounds (zari-500). `.hover-line` / `.header-link` are DEPRECATED
-     aliases kept so un-migrated call sites keep working. */
+     on ink grounds (zari-500). The `.hover-line` / `.header-link` aliases are
+     gone — the migration is finished and both had zero call sites left. */
   .thread-link,
-  .thread-link-ink,
-  .hover-line,
-  .header-link {
+  .thread-link-ink {
     --thread-h: 1px;
     @apply relative inline-block transition-colors duration-fast ease-cloth;
   }
 
-  .header-link {
-    --thread-h: 2px;
-    @apply h-full;
-  }
-
   .thread-link::after,
-  .thread-link-ink::after,
-  .hover-line::after,
-  .header-link::after {
+  .thread-link-ink::after {
     content: '';
     height: var(--thread-h);
     @apply absolute bottom-0 left-0 w-full origin-left scale-x-0 transition-transform ease-cloth;
   }
 
-  .thread-link::after,
-  .hover-line::after {
+  .thread-link::after {
     @apply bg-zari-700;
   }
 
-  .thread-link-ink::after,
-  .header-link::after {
+  .thread-link-ink::after {
     @apply bg-zari-500;
   }
 
   .thread-link:hover::after,
   .thread-link:focus-visible::after,
   .thread-link-ink:hover::after,
-  .thread-link-ink:focus-visible::after,
-  .hover-line:hover::after,
-  .hover-line:focus-visible::after,
-  .header-link:hover::after,
-  .header-link:focus-visible::after {
+  .thread-link-ink:focus-visible::after {
     @apply scale-x-100;
   }
 
@@ -263,6 +248,51 @@
 
   .field-ink {
     @apply block w-full rounded-control border border-ink-faint bg-ink-800 px-4 py-3 text-body text-paper transition-colors duration-fast ease-cloth placeholder:text-paper-muted hover:border-paper-muted focus:border-zari-500;
+  }
+
+  /* -- Banners ------------------------------------------------------------ */
+
+  /* Form feedback and page-level notices. Three recipes were doing this one
+     job — a solid fill at 3px radius, a solid fill at zero radius, and a 10%
+     tint with a border and coloured text — so the same "could not save" panel
+     looked like a different kind of object on each form.
+
+     GEOMETRY: the tinted outline, at zero radius. A banner is a plate, and in
+     this system plates have hairlines, not radii (`rounded-plate`), which is
+     also what lets a banner sit flush above a stack of `.field`s.
+
+     BOTH GROUNDS, ONE CLASS. The state colour is carried by a translucent
+     tint and a coloured edge, and the TEXT COLOUR IS INHERITED — the base
+     deliberately sets no `text-*`. On paper the banner inherits ink and on a
+     `.section-band` (or the ink auth panels) it inherits paper, so the same
+     four classes work on both grounds with no `-ink` variant to forget:
+       madder/10 over paper  + ink   = 13.1:1
+       madder/12 over ink-900 + paper = 15.3:1
+     Solid state fills could not do this — madder text on ink-900 is 2.55:1,
+     and haldi text on paper is 2.96:1, so "coloured text" was never portable.
+     That is why the hue lives in the fill and the edge instead.
+
+     The 2px leading edge is the state's loudest cue on an ink ground, where a
+     10% tint is necessarily quiet. Borders here are supporting decoration —
+     the message text carries the meaning and clears 13:1 on every variant.
+
+     Use `.banner` alone for a neutral notice; add one modifier for state.
+     Pair with `role="alert"` at the call site for anything the user must be
+     told about; that is markup, not style, and stays the caller's job. */
+  .banner {
+    @apply flex items-start gap-3 rounded-plate border border-l-2 border-line-strong bg-transparent px-4 py-3 text-body;
+  }
+
+  .banner-error {
+    @apply border-madder bg-madder/10;
+  }
+
+  .banner-success {
+    @apply border-neem bg-neem/10;
+  }
+
+  .banner-warning {
+    @apply border-haldi bg-haldi/10;
   }
 }
 

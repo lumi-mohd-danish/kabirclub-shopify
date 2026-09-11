@@ -64,13 +64,11 @@ module.exports = {
 
       fontFamily: {
         display: ['var(--font-display)', 'Georgia', 'serif'], // Fraunces
-        sans: ['var(--font-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'], // Hanken Grotesk
-        // DEPRECATED aliases. 26 `font-lora` + 3 `font-quicksand` call sites are
-        // still un-migrated; without these, tailwindcss/no-custom-classname
-        // fails the build. Delete both keys once those call sites move to
-        // `font-display` / `font-sans`.
-        lora: ['var(--font-display)', 'Georgia', 'serif'],
-        quicksand: ['var(--font-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif']
+        sans: ['var(--font-sans)', 'ui-sans-serif', 'system-ui', 'sans-serif'] // Hanken Grotesk
+        // The `lora` / `quicksand` aliases are deleted. The comment here used
+        // to claim 26 + 3 un-migrated call sites; the migration is finished and
+        // a repo-wide grep for `font-lora` / `font-quicksand` now returns zero,
+        // so `font-display` and `font-sans` above are the only two families.
       },
 
       /* One numeric type scale. Replaces the eight one-off clamp() expressions
