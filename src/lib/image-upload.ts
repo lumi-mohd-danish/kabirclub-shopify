@@ -60,21 +60,6 @@ async function postToUploadApi(
   };
 }
 
-/**
- * Uploads a raw base64 image (no `data:` prefix required) and returns its URL,
- * or null when the server responded without one.
- */
-export const uploadImage = async (
-  base64Image: string,
-  controller: AbortController
-): Promise<string | null> => {
-  const formData = new FormData();
-  formData.append('image', base64Image);
-
-  const result = await postToUploadApi(formData, controller.signal);
-  return result.url || null;
-};
-
 export const uploadImageFile = async (
   file: File,
   controller?: AbortController
@@ -96,29 +81,6 @@ export const uploadImageFile = async (
     const message = error instanceof Error ? error.message : 'Unknown error';
     throw new Error(`Failed to upload image: ${message}`);
   }
-};
-
-export const uploadMultipleImages = async (
-  files: File[],
-  // eslint-disable-next-line no-unused-vars
-  onProgress?: (uploaded: number, total: number) => void,
-  controller?: AbortController
-): Promise<ImageUploadResult[]> => {
-  const results: ImageUploadResult[] = [];
-
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    if (!file) continue;
-
-    const result = await uploadImageFile(file, controller);
-    results.push(result);
-
-    if (onProgress) {
-      onProgress(i + 1, files.length);
-    }
-  }
-
-  return results;
 };
 
 // Helper function to validate image file

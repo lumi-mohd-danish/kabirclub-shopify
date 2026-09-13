@@ -21,8 +21,6 @@ module.exports = {
         'btn-very-dark',
         'btn-cart',
         'btn-cart-disabled',
-        'hover-line',
-        'header-link',
         // Swiper ships its own stylesheet: swiper, swiper-slide,
         // swiper-button-next, swiper-pagination-bullet, ...
         'swiper.*'

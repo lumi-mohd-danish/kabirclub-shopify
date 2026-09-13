@@ -6,7 +6,7 @@ import {
   supabase,
   type SupabaseDbClient
 } from '../supabase';
-import type { Cart, CartLine, Order, Page, ShippingAddress } from './types';
+import type { Cart, CartLine, Order, ShippingAddress } from './types';
 
 export type { SupabaseDbClient };
 
@@ -158,11 +158,6 @@ export interface PlacedOrderRow {
   total_amount: number;
   created_at: string;
   updated_at: string;
-}
-
-export interface MenuItem {
-  title: string;
-  path: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -913,51 +908,6 @@ export async function removeFromCart(
   return !error;
 }
 
-export async function clearCart(
-  sessionId: string,
-  client?: SupabaseDbClient | null
-): Promise<boolean> {
-  const db = resolveClient(client);
-
-  if (!db || !sessionId) {
-    return false;
-  }
-
-  const { error } = await db.from('cart_items').delete().eq('session_id', sessionId);
-
-  return !error;
-}
-
-// ---------------------------------------------------------------------------
-// Pages / menu
-// ---------------------------------------------------------------------------
-
-const samplePage: Page = {
-  id: '1',
-  title: 'Sample Page',
-  body: '<p>This is a sample page content.</p>',
-  bodySummary: 'Sample page content',
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString()
-};
-
-export async function getPage(): Promise<Page | null> {
-  // There is no `pages` table yet, so both the configured and unconfigured
-  // paths serve the same static content.
-  return samplePage;
-}
-
-const defaultMenu: MenuItem[] = [
-  { title: 'Home', path: '/' },
-  { title: 'Products', path: '/products' },
-  { title: 'About', path: '/about-us' },
-  { title: 'Contact', path: '/contact' }
-];
-
-export async function getMenu(): Promise<MenuItem[]> {
-  // There is no `menu` table yet; navigation is static in both states.
-  return defaultMenu;
-}
 
 // ---------------------------------------------------------------------------
 // Orders API
