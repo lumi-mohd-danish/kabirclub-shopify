@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import Footer from '@/components/sections/Footer';
+import Header from '@/components/sections/Header';
+
 export const metadata: Metadata = {
   title: 'Page not found',
   description: 'That page could not be found. Browse the KabirClub catalogue instead.',
@@ -28,8 +31,17 @@ const WAYS_BACK = [
  * area: the woven rule, the hover hairline on the chips, and the single
  * filled CTA (`.btn-primary` = bg-zari-500 + text-ink, 8.16:1).
  */
+/**
+ * This file sits OUTSIDE the `(storefront)` route group, because Next.js only
+ * uses the root `not-found` for URLs that match no segment at all. That means
+ * it does not inherit the storefront layout, so it renders the chrome itself —
+ * a 404 without the shop's header is a dead end.
+ */
 export default function NotFound() {
   return (
+    <>
+      <Header />
+      <main>
     <section className="container-page section flex flex-col items-center gap-10 text-center">
       <div className="flex flex-col items-center gap-5">
         <p className="eyebrow text-ink-muted">Error 404</p>
@@ -79,5 +91,8 @@ export default function NotFound() {
         </ul>
       </div>
     </section>
+      </main>
+      <Footer />
+    </>
   );
 }

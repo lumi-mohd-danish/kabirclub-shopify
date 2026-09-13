@@ -2,11 +2,9 @@
 import type { Metadata, Viewport } from 'next';
 
 // react
-import { ReactNode, Suspense } from 'react';
+import { ReactNode } from 'react';
 
 // components
-import Header from '@/components/sections/Header';
-import Footer from '@/components/sections/Footer';
 import { AuthProvider } from '@/components/providers/AuthProvider';
 
 // utils
@@ -110,16 +108,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
             because UserProfile reads auth, and the footer because it is
             cheaper to keep the boundary at the top than to reason about which
             branch mounts a consumer next. */}
-        <AuthProvider>
-          <Header />
-          <Suspense>
-            {/* Intentionally NOT `.container-page`. The homepage's ink bands
-                are full-bleed `.section-band`s that live inside <main>, so the
-                inset belongs to each section's inner wrapper, not to <main>. */}
-            <main>{children}</main>
-          </Suspense>
-          <Footer />
-        </AuthProvider>
+        {/* The storefront header and footer are NOT rendered here. They live
+            in `app/(storefront)/layout.tsx`, so that `/admin` — which sits
+            outside that route group and has its own tool chrome — no longer
+            renders the marketing header and footer above its own AdminNav.
+            AuthProvider stays at the root because admin reads auth too. */}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );
