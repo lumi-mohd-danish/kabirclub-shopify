@@ -128,33 +128,6 @@ export async function createCollection(collectionData: {
   return data;
 }
 
-export async function updateCollection(
-  id: string,
-  updates: Partial<{
-    title: string;
-    description: string;
-    handle: string;
-    image: string;
-  }>
-): Promise<Collection | null> {
-  if (!isSupabaseConfigured()) {
-    throw new Error('Supabase not configured');
-  }
-
-  const { data, error } = await supabase!
-    .from('collections')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error updating collection:', error);
-    throw new Error(`Failed to update collection: ${error.message}`);
-  }
-
-  return data;
-}
 
 export async function deleteCollection(id: string): Promise<boolean> {
   if (!isSupabaseConfigured()) {
@@ -200,28 +173,3 @@ export async function bulkCreateProducts(products: Array<{
   return data || [];
 }
 
-export async function uploadImage(file: File): Promise<string> {
-  if (!isSupabaseConfigured()) {
-    throw new Error('Supabase not configured');
-  }
-
-  const fileExt = file.name.split('.').pop();
-  const fileName = `${Date.now()}.${fileExt}`;
-  const filePath = `products/${fileName}`;
-
-  const { error } = await supabase!.storage
-    .from('product-images')
-    .upload(filePath, file);
-
-  if (error) {
-    console.error('Error uploading image:', error);
-    throw new Error(`Failed to upload image: ${error.message}`);
-  }
-
-  // Get public URL
-  const { data: urlData } = supabase!.storage
-    .from('product-images')
-    .getPublicUrl(filePath);
-
-  return urlData.publicUrl;
-}

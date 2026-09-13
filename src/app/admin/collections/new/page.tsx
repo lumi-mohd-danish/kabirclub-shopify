@@ -1,192 +1,252 @@
 'use client';
 
-import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { createCollection } from '@/lib/supabase/admin-api';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
+
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import {
+  BTN_GHOST,
+  BTN_PRIMARY,
+  FIELD,
+  HINT,
+  INLINE_ERROR,
+  LABEL,
+  bannerClass,
+  errorMessage,
+  type AdminMessage
+} from '@/components/admin/admin-ui';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { createCollection } from '@/lib/supabase/admin-api';
+
+const REDIRECT_DELAY_MS = 1200;
+
+/** The same rule the product handle follows, and the same one the routes use. */
+const HANDLE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+type FieldKey = 'title' | 'handle';
+
+const slugify = (value: string): string =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/[\s_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
 
 export default function NewCollectionPage() {
   const { requireAdmin } = useAdminAuth();
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    handle: '',
-    image: ''
-  });
+  const fieldId = useId();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    
-    if (name === 'title' && !formData.handle) {
-      // Auto-generate handle from title
-      const autoHandle = value.toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .trim();
-      
-      setFormData(prev => ({
-        ...prev,
-        [name]: value,
-        handle: autoHandle
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
+  const [title, setTitle] = useState('');
+  const [handle, setHandle] = useState('');
+  const [handleEdited, setHandleEdited] = useState(false);
+  const [description, setDescription] = useState('');
+  const [image, setImage] = useState('');
+
+  const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [message, setMessage] = useState<AdminMessage | null>(null);
+  const redirectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const ids = {
+    title: `${fieldId}-title`,
+    handle: `${fieldId}-handle`,
+    description: `${fieldId}-description`,
+    image: `${fieldId}-image`
+  };
+
+  const errorId = (field: FieldKey) => `${fieldId}-${field}-error`;
+
+  // A pending redirect must not fire after this page has gone away.
+  useEffect(
+    () => () => {
+      if (redirectTimer.current) clearTimeout(redirectTimer.current);
+    },
+    []
+  );
+
+  const isBusy = isSaving || isRedirecting;
+
+  const handleTitleChange = (value: string) => {
+    setTitle(value);
+    setErrors((current) => ({ ...current, title: undefined }));
+
+    // The handle follows the title until it is typed in by hand. It used to
+    // stop following after the very first keystroke, which left every
+    // collection handled by its first letter.
+    if (!handleEdited) {
+      setHandle(slugify(value));
+      setErrors((current) => ({ ...current, handle: undefined }));
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (isBusy) return;
+
+    const trimmedTitle = title.trim();
+    const tidyHandle = slugify(handle);
+    const nextErrors: Partial<Record<FieldKey, string>> = {};
+
+    if (!trimmedTitle) nextErrors.title = 'A title is required.';
+    if (!tidyHandle) {
+      nextErrors.handle = 'A handle is required.';
+    } else if (!HANDLE_PATTERN.test(tidyHandle)) {
+      nextErrors.handle = 'Use lowercase letters, numbers and single hyphens only.';
+    }
+
+    setHandle(tidyHandle);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      document.getElementById(nextErrors.title ? ids.title : ids.handle)?.focus();
+      return;
+    }
+
+    setErrors({});
+
     try {
       requireAdmin();
-      setIsLoading(true);
+      setIsSaving(true);
       setMessage(null);
 
-      // Validation
-      if (!formData.title || !formData.handle) {
-        throw new Error('Please fill in all required fields');
-      }
-
-      const collectionData = {
-        title: formData.title,
-        description: formData.description,
-        handle: formData.handle,
-        image: formData.image || undefined
-      };
-
-      await createCollection(collectionData);
-      
-      setMessage({
-        type: 'success',
-        text: 'Collection created successfully!'
+      await createCollection({
+        title: trimmedTitle,
+        description: description.trim(),
+        handle: tidyHandle,
+        image: image.trim() || undefined
       });
 
-      // Redirect after a brief delay
-      setTimeout(() => {
+      setIsRedirecting(true);
+      setMessage({ type: 'success', text: `“${trimmedTitle}” was created.` });
+
+      redirectTimer.current = setTimeout(() => {
         router.push('/admin/collections');
-      }, 1500);
-
-    } catch (error: any) {
-      console.error('Error creating collection:', error);
-      setMessage({
-        type: 'error',
-        text: error.message || 'Failed to create collection'
-      });
+      }, REDIRECT_DELAY_MS);
+    } catch (error) {
+      setMessage({ type: 'error', text: errorMessage(error, 'Failed to create collection') });
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Add New Collection</h1>
-          <p className="text-gray-400">Create a new product collection</p>
-        </div>
-        <Link
-          href="/admin/collections"
-          className="px-4 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600"
-        >
-          Back to Collections
-        </Link>
-      </div>
+    <div className="space-y-5">
+      <AdminPageHeader
+        eyebrow="Collections"
+        title="Add new collection"
+        description="Group products under one handle."
+        actions={
+          <Link href="/admin/collections" className={BTN_GHOST}>
+            Back to collections
+          </Link>
+        }
+      />
 
-      {message && (
-        <div className={`p-4 rounded-lg ${
-          message.type === 'success' ? 'bg-green-900 text-green-200' : 'bg-red-900 text-red-200'
-        }`}>
+      {message ? (
+        <p role="status" aria-live="polite" className={bannerClass(message.type)}>
           {message.text}
-        </div>
-      )}
+        </p>
+      ) : null}
 
-      <form onSubmit={handleSubmit} className="bg-gray-900 rounded-lg p-6 space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <form onSubmit={handleSubmit} className="space-y-5 border border-ink-700 bg-ink-800 p-4">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label className="block text-white text-sm font-medium mb-2">
-              Collection Title *
+            <label htmlFor={ids.title} className={LABEL}>
+              Collection title *
             </label>
             <input
-              type="text"
+              id={ids.title}
               name="title"
-              value={formData.title}
-              onChange={handleInputChange}
+              type="text"
+              value={title}
+              onChange={(event) => handleTitleChange(event.target.value)}
               required
-              className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+              aria-invalid={errors.title ? true : undefined}
+              aria-describedby={errors.title ? errorId('title') : undefined}
+              className={FIELD}
               placeholder="Enter collection title"
             />
+            {errors.title ? (
+              <p id={errorId('title')} className={INLINE_ERROR}>
+                {errors.title}
+              </p>
+            ) : null}
           </div>
 
           <div>
-            <label className="block text-white text-sm font-medium mb-2">
+            <label htmlFor={ids.handle} className={LABEL}>
               Handle (URL) *
             </label>
             <input
-              type="text"
+              id={ids.handle}
               name="handle"
-              value={formData.handle}
-              onChange={handleInputChange}
+              type="text"
+              value={handle}
+              onChange={(event) => {
+                setHandleEdited(true);
+                setHandle(event.target.value);
+                setErrors((current) => ({ ...current, handle: undefined }));
+              }}
+              onBlur={() => setHandle((current) => slugify(current))}
               required
-              className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+              aria-invalid={errors.handle ? true : undefined}
+              aria-describedby={errors.handle ? errorId('handle') : undefined}
+              className={FIELD}
               placeholder="collection-url-handle"
             />
-            <p className="text-gray-400 text-xs mt-1">
-              URL-friendly identifier (auto-generated from title)
-            </p>
+            {errors.handle ? (
+              <p id={errorId('handle')} className={INLINE_ERROR}>
+                {errors.handle}
+              </p>
+            ) : (
+              <p className={HINT}>
+                Generated from the title. This becomes /search/{handle || 'your-handle'}.
+              </p>
+            )}
           </div>
         </div>
 
         <div>
-          <label className="block text-white text-sm font-medium mb-2">
+          <label htmlFor={ids.description} className={LABEL}>
             Description
           </label>
           <textarea
+            id={ids.description}
             name="description"
-            value={formData.description}
-            onChange={handleInputChange}
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
             rows={4}
-            className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+            className={FIELD}
             placeholder="Enter collection description"
           />
         </div>
 
         <div>
-          <label className="block text-white text-sm font-medium mb-2">
-            Collection Image (Optional)
+          <label htmlFor={ids.image} className={LABEL}>
+            Collection image (optional)
           </label>
           <input
-            type="url"
+            id={ids.image}
             name="image"
-            value={formData.image}
-            onChange={handleInputChange}
-            className="w-full p-3 bg-gray-800 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none"
+            type="url"
+            value={image}
+            onChange={(event) => setImage(event.target.value)}
+            className={FIELD}
             placeholder="https://example.com/collection-image.jpg"
           />
         </div>
 
-        {/* Submit Button */}
-        <div className="flex gap-4">
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed font-medium"
-          >
-            {isLoading ? 'Creating...' : 'Create Collection'}
+        <div className="flex flex-wrap gap-2 border-t border-ink-700 pt-4">
+          <button type="submit" disabled={isBusy} className={BTN_PRIMARY}>
+            {isRedirecting ? 'Created' : isSaving ? 'Creating…' : 'Create collection'}
           </button>
-          
-          <Link
-            href="/admin/collections"
-            className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 font-medium"
-          >
+          <Link href="/admin/collections" className={BTN_GHOST}>
             Cancel
           </Link>
         </div>

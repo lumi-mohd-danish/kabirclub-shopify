@@ -1,88 +1,198 @@
 'use client';
 
+import ImageWithFallback from '@/components/common/ImageWithFallback';
+import Price from '@/components/common/price';
 import { Product } from '@/lib/supabase/types';
-import { shareOnWhatsApp } from '@/lib/whatsapp-share';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
-import Price from '../common/price';
+
+/**
+ * The plate. The ONLY product card in the app.
+ *
+ * Three of these used to ship — this one, `product/ProductCard.tsx`, and a copy
+ * inlined in `product-grid-items.tsx` — and two of them rendered in adjacent
+ * sections of the same homepage, at different aspect ratios, with different
+ * `sizes` hints and two different price formatters. The catalogue grid, the
+ * Best Sellers carousel, New Arrivals and the PDP recommendations now all
+ * render this file.
+ *
+ * Not a card: no wrapper background, no radius, no border, no resting shadow.
+ * A 3:4 photograph on a warm `paper-sunk` mat, the page ground doing the
+ * framing, and the price as the only metallic element — which is what makes it
+ * the focal point and is commercially correct.
+ *
+ * Gold here is `zari-700` (#8A6410, 4.85:1 on paper), never `zari-500`
+ * (1.96:1). The mat is `paper-sunk` and carries no text, which is exactly why
+ * zari-700's 4.42:1 on that surface never comes up.
+ */
+
+/**
+ * The catalogue default: 2-up on phones, 3-up on tablets, 4-up in the desktop
+ * grid (1240px container, lg gutters, `gap-x-6` → ~272px a column) and ~280px
+ * in the Best Sellers carousel.
+ *
+ * Sections whose columns are wider than that pass their own — an under-stated
+ * `sizes` is how a sharp photograph ends up served at half the resolution it
+ * is painted at.
+ */
+export const PRODUCT_CARD_SIZES = '(max-width: 640px) 48vw, (max-width: 1024px) 36vw, 300px';
+
+const PLACEHOLDER_IMAGE = '/images/placeholder.png';
+
+/** The cloth reveal: 520ms, `ease-cloth`, a wipe up rather than a fade. */
+const CLOTH_REVEAL_SECONDS = 0.52;
+const EASE_CLOTH = [0.22, 0.61, 0.36, 1] as const;
+
+/**
+ * Sample rows, half-migrated Supabase rows and hand-entered admin rows all
+ * reach this component, and between them they have produced every one of
+ * these: the literal strings `"undefined"` and `"null"` (a template literal
+ * that interpolated a missing value), an `example.com` seed URL that is not in
+ * `next.config.js`'s `remotePatterns` and therefore throws inside next/image,
+ * and plain whitespace.
+ */
+function usableImage(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+
+  const trimmed = value.trim();
+
+  if (!trimmed || trimmed === 'undefined' || trimmed === 'null') return null;
+  if (trimmed.includes('example.com')) return null;
+
+  return trimmed;
+}
 
 interface ProductCardProps {
   product: Product;
+  /** Entrance delay in seconds. Callers cap their own stagger at `Math.min(i, 6) * 0.04`. */
   delay?: number;
+  /** Entrance duration in seconds. `0` opts a card out of the reveal. */
   duration?: number;
+  /** Layout hint for next/image. Override when the column is wider than the catalogue's. */
+  sizes?: string;
+  /** Set on the first row of an above-the-fold grid so the LCP image is not lazy. */
+  priority?: boolean;
 }
 
-export default function ProductCard({ product, delay = 0, duration }: ProductCardProps) {
-  const [showShareButton, setShowShareButton] = useState(false);
+export default function ProductCard({
+  product,
+  delay = 0,
+  duration,
+  sizes = PRODUCT_CARD_SIZES,
+  priority = false
+}: ProductCardProps) {
+  // framer-motion animates in JS, so the global reduced-motion block in
+  // globals.css cannot reach it. This is the gate the spec asks for: with the
+  // preference set the plate is simply present, un-clipped, from the start.
+  const prefersReducedMotion = useReducedMotion();
 
-  const handleWhatsAppShare = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    shareOnWhatsApp({ product });
-  };
+  // Everything below is defensive for the same reason `usableImage` is: this
+  // component is handed rows from Supabase, from the sample-data fallback and
+  // from the admin forms, and a missing handle used to route to `/product/`.
+  const title =
+    typeof product.title === 'string' && product.title.trim() ? product.title : 'Product';
+  const handle =
+    typeof product.handle === 'string' && product.handle.trim() ? product.handle.trim() : null;
+  const price =
+    typeof product.price === 'number' && Number.isFinite(product.price) ? product.price : 0;
+
+  const images = Array.isArray(product.images) ? product.images : [];
+  const primaryImage = usableImage(images[0]) ?? PLACEHOLDER_IMAGE;
+  const secondaryImage = usableImage(images[1]);
+  const productSizes = Array.isArray(product.sizes)
+    ? product.sizes.filter((size): size is string => typeof size === 'string' && !!size.trim())
+    : [];
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: duration || 0.5, delay }}
-      className="group relative overflow-hidden rounded-lg bg-white shadow-lg transition-all duration-300 hover:shadow-xl w-full max-w-sm mx-auto"
-      onMouseEnter={() => setShowShareButton(true)}
-      onMouseLeave={() => setShowShareButton(false)}
+      initial={prefersReducedMotion ? false : { clipPath: 'inset(0 0 100% 0)' }}
+      animate={{ clipPath: 'inset(0 0 0 0)' }}
+      transition={{
+        duration: duration ?? CLOTH_REVEAL_SECONDS,
+        delay,
+        ease: EASE_CLOTH
+      }}
+      className="group w-full"
     >
-      {/* {rank && (
-        <div className="absolute left-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-[#daa520] text-sm font-bold text-white">
-          {rank}
-        </div>
-      )} */}
-      
-      <Link href={`/product/${product.handle}`} className="block">
-        <div className="relative aspect-square overflow-hidden">
-          <Image
-            src={product.images[0] || '/images/placeholder.png'}
-            alt={product.title}
+      <Link href={handle ? `/product/${handle}` : '/search'} className="block">
+        {/*
+          The mat. Hover and focus-visible get the identical treatment, so the
+          keyboard gets everything the mouse does: the mat lifts from
+          `paper-sunk` to `paper-raised` and `shadow-card` fades in. The
+          photograph itself never scales.
+        */}
+        <div className="relative aspect-[3/4] overflow-hidden rounded-plate bg-paper-sunk transition-colors duration-fast ease-cloth group-focus-within:bg-paper-raised group-focus-within:shadow-card group-hover:bg-paper-raised group-hover:shadow-card">
+          {/*
+            A URL can pass `usableImage` and still 404, so the primary shot goes
+            through the shared fallback wrapper rather than leaving a hole in
+            the grid. `key` is the resolved src: the wrapper seeds its state
+            once, so without this a recycled card would keep showing the
+            previous product's fallback.
+
+            `unoptimized` is limited to the bundled placeholder — a static
+            900x1200 plate the optimizer can only make bigger. Real photography
+            goes through the optimizer, which is the point of using next/image.
+          */}
+          <ImageWithFallback
+            key={primaryImage}
+            src={primaryImage}
+            fallbackSrc={PLACEHOLDER_IMAGE}
+            alt={title}
             fill
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
-            sizes="(max-width: 480px) 90vw, (max-width: 768px) 45vw, (max-width: 1024px) 33vw, 25vw"
+            sizes={sizes}
+            priority={priority}
+            unoptimized={primaryImage === PLACEHOLDER_IMAGE}
+            className="object-cover object-center"
           />
-          
-          {/* WhatsApp Share Button */}
-          <div className={`absolute top-2 right-2 transition-all duration-300 ${
-            showShareButton ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
-          }`}>
-            <button
-              onClick={handleWhatsAppShare}
-              className="p-2 bg-green-600 text-white rounded-full shadow-lg hover:bg-green-700 transition-colors duration-200 hover:scale-110"
-              title="Share on WhatsApp"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"></path>
-              </svg>
-            </button>
-          </div>
-        </div>
-        
-        <div className="p-3 sm:p-4">
-          <h3 className="mb-2 text-sm sm:text-base md:text-lg font-semibold text-gray-800 line-clamp-2 leading-tight">
-            {product.title}
-          </h3>
-          {/* <p className="mb-3 text-xs text-gray-600 line-clamp-2">
-            {product.description}
-          </p> */}
-          <div className="mb-2 sm:mb-3 flex items-center justify-between">
-            <Price
-              amount={product.price.toString()}
-              currencyCode="INR"
-              className="text-base sm:text-lg md:text-xl font-bold text-[#daa520]"
+
+          {/*
+            The second shot cross-fades over the first where one exists. No
+            fallback on this layer on purpose: if it 404s the hover simply does
+            not happen, which is better than hovering a real garment and being
+            handed a placeholder.
+          */}
+          {secondaryImage ? (
+            <Image
+              src={secondaryImage}
+              alt=""
+              aria-hidden="true"
+              fill
+              sizes={sizes}
+              className="object-cover object-center opacity-0 transition-opacity duration-fast ease-cloth group-focus-within:opacity-100 group-hover:opacity-100"
             />
-            {/* <span className="text-sm text-gray-500 capitalize">
-              {product.category}
-            </span> */}
-          </div>
+          ) : null}
+        </div>
+
+        <div className="pt-4">
+          {product.category ? <p className="eyebrow text-ink-muted">{product.category}</p> : null}
+
+          {/*
+            The zari thread draws left-to-right under the title on card hover
+            AND card focus. `.thread-link` only reacts to its own :hover, so
+            the plate builds the same 1px bar with `group-*:after:` variants.
+          */}
+          <h3 className="relative mt-2 inline-block max-w-full text-body font-medium text-ink after:absolute after:bottom-0 after:left-0 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-zari-700 after:transition-transform after:duration-fast after:ease-cloth after:content-[''] group-focus-within:after:scale-x-100 group-hover:after:scale-x-100">
+            <span className="line-clamp-2">{title}</span>
+          </h3>
+
+          {/* `.num` and the en-IN formatting live in <Price>; the plate only
+              owns the colour and the size, because it is the one that knows it
+              is sitting on paper. */}
+          <Price amount={price} currencyCode="INR" className="mt-2 text-price text-zari-700" />
+
+          {/*
+            Merchandising in the space the hover state was already occupying.
+            The row is laid out at every width from `md:` up and only its
+            opacity changes, so revealing it never shifts the grid.
+          */}
+          {productSizes.length > 0 ? (
+            <p className="mt-2 hidden text-caption text-ink-muted opacity-0 transition-opacity duration-fast ease-cloth group-focus-within:opacity-100 group-hover:opacity-100 md:block">
+              {productSizes.join(' · ')}
+            </p>
+          ) : null}
         </div>
       </Link>
     </motion.div>
   );
-} 
+}

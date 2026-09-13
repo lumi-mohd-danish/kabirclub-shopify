@@ -1,106 +1,97 @@
 'use client';
 
 import { useAuth } from '@/hooks/useAuth';
-import { getCart } from '@/lib/supabase/api';
-import { Cart as CartType } from '@/lib/supabase/types';
-import { useCallback, useEffect, useState } from 'react';
+import { type CartWithSizes } from '@/lib/supabase/api';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { getCartForSession } from './actions';
 import CartModal from './modal';
 
 export default function Cart() {
   const { isAuthenticated, isLoading, user } = useAuth();
-  const [cart, setCart] = useState<CartType | null>(null);
+  const [cart, setCart] = useState<CartWithSizes | null>(null);
 
-  const fetchCart = useCallback(async (sid: string) => {
+  // Monotonic ticket for in-flight fetches. Only the newest one may write to
+  // state, so a slow response can never overwrite a newer cart.
+  const requestIdRef = useRef(0);
+  const isMountedRef = useRef(true);
+
+  const signedIn = isAuthenticated() && Boolean(user);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  const clearCartState = useCallback(() => {
+    // Invalidate anything in flight, so it cannot repopulate the cart.
+    requestIdRef.current += 1;
+    setCart(null);
+  }, []);
+
+  const refreshCart = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+
     try {
-      console.log('Fetching cart for sessionId:', sid);
-      const cartData = await getCart(sid);
-      console.log('Cart data received:', cartData);
-      setCart(cartData);
+      // The session cookie is httpOnly, so the read happens server-side: the
+      // action resolves the session AND the cart in one round trip, and the id
+      // never reaches the browser to be swapped for somebody else's.
+      const nextCart = await getCartForSession();
+
+      if (!isMountedRef.current || requestId !== requestIdRef.current) return;
+      setCart(nextCart);
     } catch (error) {
-      console.error('Error fetching cart:', error);
+      console.error('Could not load the cart:', error);
+      if (!isMountedRef.current || requestId !== requestIdRef.current) return;
+      setCart(null);
     }
   }, []);
 
   useEffect(() => {
-    // Get sessionId from cookies
-    const getSessionId = () => {
-      const cookies = document.cookie.split(';');
-      const sessionCookie = cookies.find(cookie => cookie.trim().startsWith('sessionId='));
-      if (sessionCookie) {
-        return sessionCookie.split('=')[1];
-      }
-      return null;
-    };
-
-    const currentSessionId = getSessionId();
-
-    if (currentSessionId) {
-      fetchCart(currentSessionId);  // Always fetch cart if sessionId exists
+    if (!signedIn) {
+      // Nobody is signed in: never leave another account's cart on screen.
+      clearCartState();
+      return;
     }
-  }, [fetchCart]);
 
-  // Clear cart when user logs out
-  useEffect(() => {
-    if (!isAuthenticated() || !user) {
-      setCart(null);
-    }
-  }, [isAuthenticated, user]);
+    void refreshCart();
+  }, [signedIn, refreshCart, clearCartState]);
 
-  // Listen for cart updates
   useEffect(() => {
-    const handleCartUpdate = () => {
-      // Get current sessionId from cookies directly
-      const cookies = document.cookie.split(';');
-      const sessionCookie = cookies.find(cookie => cookie.trim().startsWith('sessionId='));
-      const currentSessionId = sessionCookie ? sessionCookie.split('=')[1] : null;
-      
-      if (currentSessionId) {
-        console.log('Cart update event received, fetching cart for sessionId:', currentSessionId);
-        fetchCart(currentSessionId);
-      } else {
-        console.log('No sessionId found in cookies');
-      }
+    const handleCartUpdated = () => {
+      if (signedIn) void refreshCart();
     };
 
-    // Listen for custom cart update events
-    window.addEventListener('cartUpdated', handleCartUpdate);
-    
+    window.addEventListener('cartUpdated', handleCartUpdated);
+    window.addEventListener('userLogin', handleCartUpdated);
+    window.addEventListener('userLogout', clearCartState);
+
     return () => {
-      window.removeEventListener('cartUpdated', handleCartUpdate);
+      window.removeEventListener('cartUpdated', handleCartUpdated);
+      window.removeEventListener('userLogin', handleCartUpdated);
+      window.removeEventListener('userLogout', clearCartState);
     };
-  }, [fetchCart]); // Remove sessionId dependency
+  }, [signedIn, refreshCart, clearCartState]);
 
-  // Listen for logout events to immediately clear cart
-  useEffect(() => {
-    const handleUserLogout = () => {
-      setCart(null);
-    };
-
-    window.addEventListener('userLogout', handleUserLogout);
-    
-    return () => {
-      window.removeEventListener('userLogout', handleUserLogout);
-    };
-  }, []);
-
-  // Show loading state while checking authentication
   if (isLoading) {
-    return (
-      <div className="w-6 h-6 md:w-6 md:h-6 bg-gray-800 rounded animate-pulse"></div>
-    );
+    return <div className="h-6 w-6 animate-pulse rounded bg-ink-800" aria-hidden="true"></div>;
   }
 
-  // Always show cart icon, but handle authentication in the modal
   return (
-    <div className="relative group">
-      <CartModal cart={cart || undefined} />
-      {/* Tooltip */}
-      <div className="absolute bottom-full right-0 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
-        {isAuthenticated() && user 
-          ? `View Cart (${cart?.totalQuantity || 0} items)`
-          : 'Login to view cart'
-        }
-        <div className="absolute top-full right-2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+    <div className="group relative">
+      <CartModal cart={cart ?? undefined} />
+      {/*
+        Tooltip. The header is an ink band, so the tooltip inverts to paper —
+        an `ink-800` chip on an `ink-900` ground is 1.08:1 and would be
+        invisible. Paper on ink also gives the arrow something to read as.
+      */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-full right-0 mb-2 whitespace-nowrap rounded-control bg-paper px-2 py-1 text-caption text-ink opacity-0 transition-opacity duration-fast ease-cloth group-hover:opacity-100"
+      >
+        {signedIn ? `View Cart (${cart?.totalQuantity ?? 0} items)` : 'Login to view cart'}
+        <div className="absolute right-2 top-full h-0 w-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-paper"></div>
       </div>
     </div>
   );

@@ -3,6 +3,8 @@
 import { compressImage, uploadImageFile, validateImageFile } from '@/lib/image-upload';
 import { useCallback, useRef, useState } from 'react';
 
+import { errorMessage } from './admin-ui';
+
 interface ImageUploadProps {
   // eslint-disable-next-line no-unused-vars
   onImageUploaded: (imageUrl: string) => void;
@@ -10,13 +12,33 @@ interface ImageUploadProps {
   onError?: (errorMessage: string) => void;
   className?: string;
   maxImages?: number;
+  /**
+   * What the form already holds. Used for the remaining-slots maths and the
+   * counter only — the THUMBNAILS are the form's job, because the form is what
+   * can remove one. This component used to render its own preview grid as
+   * well, so every product page showed each image twice: once here without a
+   * remove control, and again below it with one.
+   */
   currentImages?: string[];
 }
 
-export default function ImageUpload({ 
-  onImageUploaded: onImageUploadedProp, 
-  onError: onErrorProp, 
-  className = '', 
+// A 1px dashed hairline, not a 2px slab: the drop target reads as a cut-out in
+// the ink ground. Dragging over it takes the gold edge — the thread again — and
+// lifts the well; there is no gold fill, which stays reserved for the one
+// primary action on the surrounding page.
+//
+// The padding lives on the inner control, not on this well, so the whole area
+// inside the hairline belongs to the real <button> and no strip of it is a
+// dead click zone.
+const DROPZONE =
+  'relative rounded-control border border-dashed transition-colors duration-fast ease-cloth';
+const DROPZONE_IDLE = 'border-ink-faint bg-transparent hover:border-paper-muted';
+const DROPZONE_ACTIVE = 'border-zari-500 bg-ink-700';
+
+export default function ImageUpload({
+  onImageUploaded: onImageUploadedProp,
+  onError: onErrorProp,
+  className = '',
   maxImages = 1,
   currentImages = []
 }: ImageUploadProps) {
@@ -26,60 +48,67 @@ export default function ImageUpload({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
-  const handleFiles = useCallback(async (files: FileList) => {
-    if (currentImages.length >= maxImages) {
-      onErrorProp?.(`Maximum ${maxImages} images allowed`);
-      return;
-    }
-
-    const remainingSlots = maxImages - currentImages.length;
-    const filesToUpload = Array.from(files).slice(0, remainingSlots);
-
-    for (const file of filesToUpload) {
-      const validation = validateImageFile(file);
-      if (!validation.isValid) {
-        onErrorProp?.(validation.error || 'Invalid image file');
-        continue;
+  const handleFiles = useCallback(
+    async (files: FileList) => {
+      if (currentImages.length >= maxImages) {
+        onErrorProp?.(`Maximum ${maxImages} images allowed`);
+        return;
       }
 
-      try {
-        setIsUploading(true);
-        setUploadProgress(0);
-        
-        // Create abort controller for this upload
-        controllerRef.current = new AbortController();
+      const remainingSlots = maxImages - currentImages.length;
+      const filesToUpload = Array.from(files).slice(0, remainingSlots);
 
-        // Compress image if it's too large
-        const processedFile = file.size > 2 * 1024 * 1024 
-          ? await compressImage(file, 1920, 0.8)
-          : file;
-
-        // Upload image
-        const result = await uploadImageFile(processedFile, controllerRef.current);
-        
-        onImageUploadedProp(result.url);
-        setUploadProgress(100);
-        
-      } catch (error: any) {
-        if (error.name !== 'AbortError') {
-          onErrorProp?.(error.message || 'Failed to upload image');
+      for (const file of filesToUpload) {
+        const validation = validateImageFile(file);
+        if (!validation.isValid) {
+          onErrorProp?.(validation.error || 'Invalid image file');
+          continue;
         }
-      } finally {
-        setIsUploading(false);
-        setUploadProgress(0);
-        controllerRef.current = null;
-      }
-    }
-  }, [currentImages.length, maxImages, onImageUploadedProp, onErrorProp]);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFiles(e.dataTransfer.files);
-    }
-  }, [handleFiles]);
+        try {
+          setIsUploading(true);
+          setUploadProgress(0);
+
+          // Create abort controller for this upload
+          controllerRef.current = new AbortController();
+
+          // Compress image if it's too large
+          const processedFile =
+            file.size > 2 * 1024 * 1024 ? await compressImage(file, 1920, 0.8) : file;
+
+          // Upload image
+          const result = await uploadImageFile(processedFile, controllerRef.current);
+
+          onImageUploadedProp(result.url);
+          setUploadProgress(100);
+        } catch (error) {
+          // A cancelled upload is a choice, not a failure worth reporting.
+          if (!(error instanceof Error) || error.name !== 'AbortError') {
+            onErrorProp?.(errorMessage(error, 'Failed to upload image'));
+          }
+        } finally {
+          setIsUploading(false);
+          setUploadProgress(0);
+          controllerRef.current = null;
+        }
+      }
+    },
+    [currentImages.length, maxImages, onImageUploadedProp, onErrorProp]
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setDragActive(false);
+
+      if (isUploading) return;
+
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleFiles(e.dataTransfer.files);
+      }
+    },
+    [handleFiles, isUploading]
+  );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -91,11 +120,14 @@ export default function ImageUpload({
     setDragActive(false);
   }, []);
 
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      handleFiles(e.target.files);
-    }
-  }, [handleFiles]);
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files.length > 0) {
+        handleFiles(e.target.files);
+      }
+    },
+    [handleFiles]
+  );
 
   const cancelUpload = () => {
     if (controllerRef.current) {
@@ -116,120 +148,103 @@ export default function ImageUpload({
       {/* Upload Area */}
       {canUploadMore && (
         <div
-          className={`
-            relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer
-            transition-colors duration-200
-            ${dragActive 
-              ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
-              : 'border-gray-300 dark:border-gray-600 hover:border-blue-400'
-            }
-            ${isUploading ? 'pointer-events-none opacity-50' : ''}
-          `}
+          className={`${DROPZONE} ${dragActive ? DROPZONE_ACTIVE : DROPZONE_IDLE} ${
+            isUploading ? 'opacity-50' : ''
+          }`}
           onDrop={handleDrop}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
-          onClick={openFileDialog}
         >
+          {/* The input stays out of the tab order on purpose: the <button>
+              below is the control, so there is exactly one stop here and it is
+              the one that is visible and can take the focus ring. */}
           <input
             ref={fileInputRef}
             type="file"
             multiple={maxImages > 1}
             accept="image/*"
             onChange={handleFileSelect}
+            tabIndex={-1}
             className="hidden"
           />
 
           {isUploading ? (
-            <div className="space-y-4">
-              <div className="w-12 h-12 mx-auto text-blue-500">
-                <svg className="animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <div className="space-y-4 p-6 text-center">
+              <div className="mx-auto h-8 w-8 text-zari-500">
+                <svg className="animate-spin" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  />
                 </svg>
               </div>
               <div>
-                <p className="text-white text-sm">Uploading image...</p>
+                <p className="text-body-sm text-paper">Uploading image…</p>
                 {uploadProgress > 0 && (
-                  <div className="w-full bg-gray-700 rounded-full h-2 mt-2">
-                    <div 
-                      className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                  <div className="mt-2 h-1 w-full bg-ink-700">
+                    <div
+                      className="h-1 bg-zari-500 transition-[width] duration-fast ease-cloth"
                       style={{ width: `${uploadProgress}%` }}
                     ></div>
                   </div>
                 )}
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    cancelUpload();
-                  }}
-                  className="mt-2 text-red-400 hover:text-red-300 text-sm"
+                  type="button"
+                  onClick={cancelUpload}
+                  className="mt-3 rounded-control border border-ink-faint px-2 py-1 text-caption font-medium text-paper transition-colors duration-fast ease-cloth hover:border-madder hover:bg-madder active:translate-y-px"
                 >
                   Cancel
                 </button>
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
-              <div className="w-12 h-12 mx-auto text-gray-400">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            // The one real control in this component. It was a <div onClick>
+            // with the file input hidden behind it, which left the whole
+            // uploader unreachable by keyboard.
+            <button
+              type="button"
+              onClick={openFileDialog}
+              className="flex w-full cursor-pointer flex-col items-center gap-3 rounded-control p-6 text-center"
+            >
+              <span className="block h-8 w-8 text-paper-muted">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                  />
                 </svg>
-              </div>
-              <div>
-                <p className="text-white text-sm font-medium">
+              </span>
+              <span className="block">
+                <span className="block text-body-sm font-medium text-paper">
                   {dragActive ? 'Drop images here' : 'Click to upload or drag and drop'}
-                </p>
-                <p className="text-gray-400 text-xs mt-1">
+                </span>
+                <span className="mt-1 block text-caption text-paper-muted">
                   PNG, JPG, GIF, WebP up to 32MB
                   {maxImages > 1 && ` (${currentImages.length}/${maxImages} uploaded)`}
-                </p>
-              </div>
-            </div>
+                </span>
+              </span>
+            </button>
           )}
-        </div>
-      )}
-
-      {/* Current Images Preview */}
-      {currentImages.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {currentImages.map((imageUrl, index) => (
-            <div key={index} className="relative group">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={imageUrl}
-                alt={`Upload ${index + 1}`}
-                className="w-full h-24 object-cover rounded-lg border border-gray-600"
-                onError={(e) => {
-                  e.currentTarget.src = '/images/placeholder.png';
-                }}
-              />
-              <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg flex items-center justify-center">
-                <button
-                  onClick={() => {
-                    // Remove this image functionality would go here
-                    // You might want to add an onImageRemoved callback prop
-                    console.log('Remove image at index:', index);
-                  }}
-                  className="p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
-                  title="Remove image"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          ))}
         </div>
       )}
 
       {/* Upload Instructions */}
       {maxImages > 1 && (
-        <div className="text-xs text-gray-500 space-y-1">
-          <p>• You can upload up to {maxImages} images</p>
-          <p>• Images will be automatically compressed if larger than 2MB</p>
-          <p>• Recommended size: 1920px width or less</p>
-        </div>
+        <p className="text-caption text-paper-muted">
+          Up to {maxImages} images. Anything over 2MB is compressed to 1920px wide before it is
+          sent.
+        </p>
       )}
     </div>
   );

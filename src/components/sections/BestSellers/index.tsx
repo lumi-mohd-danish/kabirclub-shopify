@@ -16,29 +16,43 @@ export type Collection = (typeof collections)[number];
 const BestSellers = () => {
   const [activeCollection, setActiveCollection] = useState<Collection>('Topwear');
   return (
-    <section className="flex w-full flex-col items-center justify-center bg-black gap-[24px] pb-[32px] pt-[24px] md:gap-[48px] md:pb-[64px] md:pt-[48px]">
-      <div className="flex w-full max-w-[95%] flex-col items-center justify-center gap-2 font-lora font-medium text-veryDarkPurple md:w-[904px] md:flex-row md:justify-between md:gap-0">
-        <h2 className="text-[clamp(28px,20px_+_2vw,40px)]">Best Sellers</h2>
-        <div className="flex gap-4 text-[clamp(20px,10px_+_2vw,26px)] md:gap-8">
-          {collections.map((collection, i) => (
-            <button
-              key={i}
-              className={clsx(
-                'relative cursor-pointer leading-[2] transition-all duration-300 first-letter:uppercase before:absolute before:bottom-0 before:left-1/2 before:h-[4px] before:-translate-x-1/2 before:bg-purple before:transition-all before:duration-300 hover:text-purple hover:before:w-full hover:before:opacity-100',
-                {
-                  'before:w-full before:opacity-100': collection === activeCollection,
-                  'before:w-0 before:opacity-0': collection !== activeCollection
-                }
-              )}
-              onClick={() => setActiveCollection(collection)}
-            >
-              {collection}
-            </button>
-          ))}
+    <section className="section">
+      <div className="container-page flex flex-col gap-10 md:gap-14">
+        <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-10">
+          <div className="flex flex-col gap-3">
+            <p className="eyebrow text-ink-muted">The edit</p>
+            <h2 className="font-display text-h2 text-ink">Best Sellers</h2>
+          </div>
+
+          {/*
+            Collection filters. The active one is marked by the woven zari rule
+            rather than by the old centre-out `before:` bar, and `aria-pressed`
+            carries the same state for anyone not looking at it.
+          */}
+          <div className="flex flex-wrap gap-6 md:gap-8">
+            {collections.map((collection, i) => (
+              <button
+                key={i}
+                type="button"
+                aria-pressed={collection === activeCollection}
+                className={clsx(
+                  'eyebrow relative py-2 transition-colors duration-fast ease-cloth',
+                  collection === activeCollection ? 'text-ink' : 'text-ink-muted hover:text-ink'
+                )}
+                onClick={() => setActiveCollection(collection)}
+              >
+                {collection}
+                {collection === activeCollection && (
+                  <span className="rule-zari absolute inset-x-0 bottom-0" aria-hidden="true" />
+                )}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
-      <div className="relative max-w-full md:w-[904px]">
-        <Slider collection={activeCollection} />
+
+        <div className="relative">
+          <Slider collection={activeCollection} />
+        </div>
       </div>
     </section>
   );

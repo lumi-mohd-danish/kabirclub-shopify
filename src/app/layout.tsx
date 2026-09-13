@@ -1,70 +1,119 @@
 // next
-import dynamic from 'next/dynamic';
+import type { Metadata, Viewport } from 'next';
 
 // react
-import { ReactNode, Suspense } from 'react';
-
-// loading component
-import Loading from '@/components/common/Loading';
-const loading = () => <Loading />;
+import { ReactNode } from 'react';
 
 // components
-import Header from '@/components/sections/Header';
-const Footer = dynamic(() => import('@/components/sections/Footer'), {
-  loading
-});
+import { AuthProvider } from '@/components/providers/AuthProvider';
 
 // utils
 import { ensureStartsWith } from '@/lib/utils';
+
+// site config
+import {
+  SITE_AUTHOR,
+  SITE_DESCRIPTION,
+  SITE_IMAGE,
+  SITE_KEYWORDS,
+  SITE_NAME,
+  SITE_THEME_COLOR,
+  SITE_URL
+} from '@/lib/constants';
 
 // styles
 import '@/styles/globals.css';
 
 // fonts
-import { lora, quicksand } from '@/fonts/fonts';
+import { display, sans } from '@/fonts/fonts';
 
 // metadata
-const { TWITTER_CREATOR, TWITTER_SITE, SITE_NAME } = process.env;
-const baseUrl = process.env.NEXT_PUBLIC_VERCEL_URL
-  ? 'https://clothing-store.rashidshamloo.com'
-  : 'http://localhost:3000';
+const { TWITTER_CREATOR, TWITTER_SITE } = process.env;
 const twitterCreator = TWITTER_CREATOR ? ensureStartsWith(TWITTER_CREATOR, '@') : undefined;
 const twitterSite = TWITTER_SITE ? ensureStartsWith(TWITTER_SITE, 'https://') : undefined;
 
-export const metadata = {
-  metadataBase: new URL(baseUrl),
+export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: SITE_NAME!,
+    default: SITE_NAME,
     template: `%s | ${SITE_NAME}`
   },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: SITE_KEYWORDS,
+  authors: [{ name: SITE_AUTHOR }],
   robots: {
     follow: true,
     index: true
   },
+  // Only site-wide values belong here: child routes inherit this object verbatim
+  // unless they declare their own `openGraph`, and Next.js back-fills og:title /
+  // og:description from each page's own title + description when they are absent.
+  // Setting them (or og:url) here would make every product page advertise the
+  // homepage instead of itself.
+  openGraph: {
+    type: 'website',
+    siteName: SITE_NAME,
+    locale: 'en_IN',
+    images: [
+      {
+        url: SITE_IMAGE,
+        width: 680,
+        height: 208,
+        alt: SITE_NAME
+      }
+    ]
+  },
+  // Card title, description and image are auto-filled per page from the
+  // resolved metadata above, so they are intentionally not pinned here.
   ...(twitterCreator &&
     twitterSite && {
       twitter: {
         card: 'summary_large_image',
         creator: twitterCreator,
-        site: twitterSite,
-        images: '/images/screenshots/home.webp'
+        site: twitterSite
       }
     }),
   icons: { icon: '/favicon.png' }
 };
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  themeColor: SITE_THEME_COLOR
+};
+
 export default async function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${quicksand.variable} ${lora.variable} ${quicksand.className}`}>
-      <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-      </head>
-      <body className="bg-white text-veryDarkPurple overflow-x-hidden">
-        <Header />
-        <Suspense>
-          <main>{children}</main>
-        </Suspense>
-        <Footer />
+    // Only the two CSS variables. `sans.className` is deliberately absent: it
+    // would pin font-family on <html> at specificity (0,1,0), which is the one
+    // thing the fallback declarations in globals.css `@layer base` are written
+    // to lose to — and it is redundant, because `body` already resolves
+    // `font-sans` to `var(--font-sans)`. Variables in, cascade untouched.
+    <html lang="en" className={`${display.variable} ${sans.variable}`}>
+      {/* Paper is the document ground and ink is the type; `@layer base` in
+          globals.css carries the same pair, but repeating it as utilities is
+          what lets a route invert itself (see app/search/layout.tsx). This
+          replaces the Phase 0 stopgap `bg-white text-neutral-900`, which was
+          itself standing in for the white-on-white `text-veryDarkPurple`.
+
+          `overflow-x-hidden` stays as-is. On <body>, with <html> at the
+          default `visible`, CSS overflow propagation hands the value to the
+          viewport and leaves body's own used value `visible`, so body never
+          becomes a scroll container and `position: sticky` descendants (the
+          PDP buy panel) keep working. Setting it on <html> as well would
+          break them. */}
+      <body className="overflow-x-hidden bg-paper text-ink">
+        {/* One Supabase subscription for the whole tree. It wraps the header
+            because UserProfile reads auth, and the footer because it is
+            cheaper to keep the boundary at the top than to reason about which
+            branch mounts a consumer next. */}
+        {/* The storefront header and footer are NOT rendered here. They live
+            in `app/(storefront)/layout.tsx`, so that `/admin` — which sits
+            outside that route group and has its own tool chrome — no longer
+            renders the marketing header and footer above its own AdminNav.
+            AuthProvider stays at the root because admin reads auth too. */}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

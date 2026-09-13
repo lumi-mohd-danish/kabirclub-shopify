@@ -1,145 +1,186 @@
 'use client';
 
+import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
+
+import AdminPageHeader from '@/components/admin/AdminPageHeader';
+import ConfirmDialog, { useConfirm } from '@/components/admin/ConfirmDialog';
+import {
+  BTN_GHOST,
+  BTN_PRIMARY,
+  CHIP_DANGER,
+  PLATE,
+  PLATE_SUNK,
+  bannerClass,
+  errorMessage,
+  type AdminMessage
+} from '@/components/admin/admin-ui';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
+import { isSupabaseConfigured } from '@/lib/supabase';
 import { deleteCollection } from '@/lib/supabase/admin-api';
 import { getCollections } from '@/lib/supabase/api';
 import { Collection } from '@/lib/supabase/types';
-import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
+
+const formatDate = (value: string): string => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Unknown' : date.toLocaleDateString('en-IN');
+};
 
 export default function AdminCollectionsPage() {
   const { requireAdmin } = useAdminAuth();
+  const { confirm, dialogProps } = useConfirm();
+
   const [collections, setCollections] = useState<Collection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [message, setMessage] = useState<AdminMessage | null>(null);
 
-  useEffect(() => {
-    fetchCollections();
-  }, []);
+  // Without Supabase the list is built-in sample data: it renders, but nothing
+  // here can be created, edited or deleted for real.
+  const [isReadOnly, setIsReadOnly] = useState(false);
 
-  const fetchCollections = async () => {
+  const fetchCollections = useCallback(async (signal: { cancelled: boolean }) => {
+    setIsLoading(true);
+
     try {
-      setIsLoading(true);
       const data = await getCollections();
+
+      if (signal.cancelled) return;
+
       setCollections(data);
     } catch (error) {
-      console.error('Error fetching collections:', error);
-      setMessage({
-        type: 'error',
-        text: 'Failed to fetch collections'
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+      if (signal.cancelled) return;
 
-  const handleDeleteCollection = async (id: string, title: string) => {
-    if (!confirm(`Are you sure you want to delete "${title}"?`)) {
-      return;
+      setCollections([]);
+      setMessage({ type: 'error', text: errorMessage(error, 'Failed to fetch collections') });
+    } finally {
+      if (!signal.cancelled) setIsLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    // `isSupabaseConfigured()` is read after mount so the server-rendered and
+    // first client render agree.
+    setIsReadOnly(!isSupabaseConfigured());
+
+    const signal = { cancelled: false };
+    fetchCollections(signal);
+
+    return () => {
+      signal.cancelled = true;
+    };
+  }, [fetchCollections]);
+
+  const handleDeleteCollection = async (collection: Collection) => {
+    const confirmed = await confirm({
+      title: `Delete the collection “${collection.title}”?`,
+      body: 'This cannot be undone. The products in it are not deleted, but its collection page and every link to it stop working.',
+      confirmLabel: 'Delete collection'
+    });
+
+    if (!confirmed) return;
 
     try {
       requireAdmin();
-      await deleteCollection(id);
-      setCollections(collections.filter(c => c.id !== id));
-      setMessage({
-        type: 'success',
-        text: `Collection "${title}" deleted successfully`
-      });
-    } catch (error: any) {
-      setMessage({
-        type: 'error',
-        text: error.message || 'Failed to delete collection'
-      });
+      setPendingId(collection.id);
+      setMessage(null);
+
+      await deleteCollection(collection.id);
+
+      setCollections((current) => current.filter((entry) => entry.id !== collection.id));
+      setMessage({ type: 'success', text: `“${collection.title}” was deleted.` });
+    } catch (error) {
+      setMessage({ type: 'error', text: errorMessage(error, 'Failed to delete collection') });
+    } finally {
+      setPendingId(null);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Collections</h1>
-          <p className="text-gray-400">Manage your product collections</p>
-        </div>
-        <Link
-          href="/admin/collections/new"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          Add New Collection
-        </Link>
-      </div>
+    <div className="space-y-5">
+      <AdminPageHeader
+        eyebrow="Catalogue"
+        title="Collections"
+        description="Collections cannot be edited yet — delete and recreate one to change it."
+        actions={
+          <Link href="/admin/collections/new" className={BTN_PRIMARY}>
+            Add new collection
+          </Link>
+        }
+      />
 
-      {message && (
-        <div className={`p-4 rounded-lg ${
-          message.type === 'success' ? 'bg-green-900 text-green-200' : 'bg-red-900 text-red-200'
-        }`}>
+      {isReadOnly ? (
+        <p className="banner banner-warning">
+          No database is connected, so these are the built-in sample collections. Creating and
+          deleting collections will not work until Supabase is configured.
+        </p>
+      ) : null}
+
+      {message ? (
+        <p role="status" aria-live="polite" className={bannerClass(message.type)}>
           {message.text}
-        </div>
-      )}
+        </p>
+      ) : null}
 
-      {/* Collections Grid */}
-      <div className="bg-gray-900 rounded-lg overflow-hidden">
+      <div className={PLATE}>
         {isLoading ? (
-          <div className="p-8 text-center">
-            <div className="text-white">Loading collections...</div>
-          </div>
+          <p className="p-6 text-center text-body-sm text-paper-muted">Loading collections…</p>
         ) : collections.length === 0 ? (
-          <div className="p-8 text-center">
-            <div className="text-gray-400">No collections found</div>
-            <Link
-              href="/admin/collections/new"
-              className="inline-block mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Add Your First Collection
+          <div className="p-6 text-center">
+            <p className="text-body-sm text-paper-muted">No collections yet.</p>
+            <Link href="/admin/collections/new" className={cn('mt-3', BTN_GHOST)}>
+              Add your first collection
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-6">
-            {collections.map((collection) => (
-              <div key={collection.id} className="bg-gray-800 rounded-lg p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-xl font-bold text-white">{collection.title}</h3>
-                  <div className="flex space-x-2">
-                    <Link
-                      href={`/admin/collections/${collection.id}/edit`}
-                      className="text-blue-400 hover:text-blue-300 text-sm"
-                    >
-                      Edit
-                    </Link>
+          <ul className="grid grid-cols-1 gap-3 p-3 md:grid-cols-2 lg:grid-cols-3">
+            {collections.map((collection) => {
+              const isPending = pendingId === collection.id;
+
+              return (
+                <li key={collection.id} className={cn(PLATE_SUNK, 'p-3')}>
+                  <div className="flex items-start justify-between gap-3">
+                    <h2 className="text-body-sm font-medium text-paper">{collection.title}</h2>
                     <button
-                      onClick={() => handleDeleteCollection(collection.id, collection.title)}
-                      className="text-red-400 hover:text-red-300 text-sm"
+                      type="button"
+                      onClick={() => handleDeleteCollection(collection)}
+                      disabled={isPending}
+                      className={CHIP_DANGER}
                     >
-                      Delete
+                      {isPending ? 'Deleting…' : 'Delete'}
                     </button>
                   </div>
-                </div>
-                
-                <p className="text-gray-400 mb-4">
-                  {collection.description || 'No description'}
-                </p>
-                
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-gray-500">
-                    Handle: {collection.handle}
-                  </span>
-                  <Link
-                    href={`/search/${collection.handle}`}
-                    target="_blank"
-                    className="text-blue-400 hover:text-blue-300"
-                  >
-                    View →
-                  </Link>
-                </div>
-                
-                <div className="text-xs text-gray-500 mt-2">
-                  Created: {new Date(collection.created_at).toLocaleDateString()}
-                </div>
-              </div>
-            ))}
-          </div>
+
+                  <p className="mt-2 text-caption text-paper-muted">
+                    {collection.description || 'No description'}
+                  </p>
+
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <span className="break-all text-caption text-paper-muted">
+                      /{collection.handle}
+                    </span>
+                    <Link
+                      href={`/search/${collection.handle}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="thread-link-ink whitespace-nowrap text-caption text-zari-500"
+                    >
+                      View
+                    </Link>
+                  </div>
+
+                  <p className="num mt-1 text-caption text-paper-muted">
+                    Created {formatDate(collection.created_at)}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </div>
+
+      <ConfirmDialog {...dialogProps} />
     </div>
   );
 }
